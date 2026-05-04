@@ -1,50 +1,214 @@
-# Welcome to your Expo app 👋
+# 🔥 Campfire
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A React Native mobile app for planning and sharing camping trips with friends. Built with Expo, React Native, and NativeWind (Tailwind CSS).
 
-## Get started
+## Features
 
-1. Install dependencies
+### 🗺️ Map Screen
 
-   ```bash
-   npm install
-   ```
+- View all nearby campsites on an interactive map
+- Search for specific campsites
+- Add new campsites (public or private)
+- See campsite details at a glance
+- Filter between public and private campsites
 
-2. Start the app
+### 🏕️ Campsite Details
 
-   ```bash
-   npx expo start
-   ```
+- View campsite photos and amenities
+- Read and create posts about the campsite
+- Like and comment on posts
+- See things to do at the location
+- Browse photo galleries
 
-In the output, you'll find options to open the app in a
+### 👤 Profile Screen
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- View your camping statistics
+- Browse past trips
+- See upcoming planned trips
+- View all your posts
+- Manage photo albums
+- Track your camping history
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 🎒 Trip Planning
 
-## Get a fresh project
+- Create and organize camping trips
+- Invite friends to trips
+- Manage group checklists (shared items)
+- Track personal checklists (what to bring)
+- Share private posts with trip members
+- See trip details and attendee list
+- Mark checklist items as complete
+- Track trip progress
 
-When you're ready, run:
+### 💬 Social Features
 
-```bash
-npm run reset-project
+- Post photos and updates at campsites
+- Like and comment on posts
+- Private trip discussions
+- Share camping experiences
+- Build a community of outdoor enthusiasts
+
+## Tech Stack
+
+- **Framework**: React Native with Expo
+- **Routing**: Expo Router (file-based routing)
+- **Styling**: NativeWind (Tailwind CSS for React Native)
+- **Language**: JavaScript/JSX
+- **Platform**: iOS, Android, and Web
+
+## Project Structure
+
+```
+campfire/
+├── app/                      # Main app screens
+│   ├── (tabs)/              # Tab navigation screens
+│   │   ├── index.jsx        # Map screen
+│   │   ├── explore.jsx      # Profile screen
+│   │   └── _layout.jsx      # Tab layout
+│   ├── campsite/[id].jsx    # Campsite detail screen
+│   ├── trip/[id].jsx        # Trip detail screen
+│   ├── login.jsx            # Login screen
+│   └── _layout.jsx          # Root layout
+├── components/              # Reusable components
+├── data/                    # Mock data
+│   └── mockData.js          # Sample data for prototype
+├── constants/               # App constants
+├── hooks/                   # Custom React hooks
+└── assets/                  # Images and static files
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Getting Started
 
-## Learn more
+### Prerequisites
 
-To learn more about developing your project with Expo, look at the following resources:
+- Node.js (v14 or later)
+- npm or yarn
+- Expo CLI
+- iOS Simulator or Android Emulator (optional)
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Installation
 
-## Join the community
+1. Clone the repository:
 
-Join our community of developers creating universal apps.
+```bash
+cd campfire
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the development server:
+
+```bash
+npm start
+```
+
+4. Run on your preferred platform:
+
+- Press `i` for iOS simulator
+- Press `a` for Android emulator
+- Press `w` for web browser
+- Scan QR code with Expo Go app on your phone
+
+## Screen Flows
+
+### 1. Login Flow
+
+`Login Screen` → `Map Screen (Tabs)`
+
+### 2. Discover Campsites
+
+`Map Screen` → `Campsite Detail Screen` → View posts, photos, activities
+
+### 3. Plan a Trip
+
+`Profile Screen` → `Trip Detail Screen` → Manage checklists, invite friends, share updates
+
+### 4. Add a Campsite
+
+`Map Screen` → `Add Campsite Modal` → Set public/private → Save
+
+### 5. Share Experience
+
+`Campsite Detail Screen` → `Create Post` → Share with community
+
+## Mock Data
+
+The app uses mock data located in `/data/mockData.js` including:
+
+- Sample users
+- Campsites (Yosemite, Big Sur, Lake Tahoe, etc.)
+- Posts with likes and comments
+- Planned and past trips
+- Checklists
+- Things to do at each campsite
+
+## Key Features in Detail
+
+### Public vs Private Campsites
+
+- **Public**: Visible to all users, can be discovered by anyone
+- **Private**: Only visible to you and invited friends
+
+### Checklist System
+
+- **Personal Checklist**: Track your own items (sleeping bag, boots, etc.)
+- **Group Checklist**: Shared items assigned to specific trip members (tent, cooler, etc.)
+
+### Post Interactions
+
+- **Public Posts**: On campsite detail pages, visible to all users
+- **Private Posts**: On trip pages, only visible to trip members
+- Both support likes and comments
+
+### Trip Status
+
+- **Planned**: Upcoming trips with active planning
+- **Past**: Completed trips for reference
+
+## Customization
+
+### Adding New Features
+
+1. Add new screens in the `app/` directory
+2. Update navigation in `app/_layout.jsx`
+3. Create mock data in `data/mockData.js`
+4. Style with Tailwind classes using NativeWind
+
+### Styling
+
+The app uses NativeWind for styling. Use Tailwind utility classes:
+
+```jsx
+<View className="flex-1 bg-gray-50 p-4">
+  <Text className="text-2xl font-bold text-orange-500">Hello</Text>
+</View>
+```
+
+## Future Enhancements
+
+- Real backend API integration
+- Real-time location services
+- Weather integration
+- Push notifications for trip updates
+- Photo upload functionality
+- Social authentication
+- Advanced search and filters
+- Route planning
+- Camping gear recommendations
+- Integration with camping reservation systems
+
+## Contributing
+
+This is a prototype/demonstration project. Feel free to fork and build upon it!
+
+## License
+
+MIT License - Feel free to use this project as a starting point for your own camping app.
+
+---
+
+Built with ❤️ and ☕ for outdoor enthusiasts
