@@ -1,14 +1,16 @@
 import { campsites } from "@/data/mockData";
+import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 
 export default function MapScreen() {
   const router = useRouter();
@@ -19,10 +21,74 @@ export default function MapScreen() {
     description: "",
     isPrivate: false,
   });
+  const [userLocation, setUserLocation] = useState(null);
+  const [region, setRegion] = useState({
+    latitude: 44.0521, // Eugene, Oregon
+    longitude: -123.0868,
+    latitudeDelta: 2,
+    longitudeDelta: 2,
+  });
 
-  const filteredCampsites = campsites.filter((site) =>
-    site.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        console.log("Location permission denied");
+        return;
+      }
+
+      try {
+        let location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const newLocation = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+        setUserLocation(newLocation);
+        setRegion({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.5,
+          longitudeDelta: 0.5,
+        });
+      } catch (error) {
+        console.log("Error getting location:", error);
+      }
+    })();
+  }, []);
+
+  // Calculate distance between two coordinates in miles
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 3959; // Earth's radius in miles
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const filteredCampsites = campsites
+    .filter((site) =>
+      site.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    )
+    .map((site) => ({
+      ...site,
+      distance: userLocation
+        ? calculateDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            site.latitude,
+            site.longitude,
+          )
+        : null,
+    }))
+    .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
   const handleCampsitePress = (campsiteId) => {
     router.push(`/campsite/${campsiteId}`);
@@ -54,7 +120,7 @@ export default function MapScreen() {
         </View>
       </View>
 
-      {/* Map Placeholder with Pins */}
+      {/* Map View with Campsite Pins */}
       <View className="flex-1">
         <View className="absolute top-4 left-4 right-4 bg-white rounded-lg p-3 shadow-md z-10">
           <Text className="text-gray-600 text-sm">
@@ -62,47 +128,105 @@ export default function MapScreen() {
           </Text>
         </View>
 
-        {/* Simulated Map View with Campsite Cards */}
-        <ScrollView className="flex-1 mt-16 px-4">
-          <View className="py-4">
-            {filteredCampsites.map((site) => (
-              <TouchableOpacity
-                key={site.id}
-                className="bg-white rounded-xl mb-4 shadow-sm overflow-hidden"
-                onPress={() => handleCampsitePress(site.id)}
-              >
-                <View className="h-40 bg-green-500 items-center justify-center">
-                  <Text className="text-6xl">🏕️</Text>
-                  {site.isPrivate && (
-                    <View className="absolute top-2 right-2 bg-orange-500 px-3 py-1 rounded-full">
-                      <Text className="text-white text-xs font-semibold">
-                        Private
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <View className="p-4">
-                  <Text className="text-lg font-bold text-gray-800">
-                    {site.name}
-                  </Text>
-                  <Text className="text-gray-600 mt-1" numberOfLines={2}>
-                    {site.description}
-                  </Text>
-                  <View className="flex-row flex-wrap mt-2">
-                    {site.amenities.slice(0, 3).map((amenity, index) => (
-                      <View
-                        key={index}
-                        className="bg-gray-100 px-2 py-1 rounded-full mr-2 mt-1"
-                      >
-                        <Text className="text-xs text-gray-600">{amenity}</Text>
-                      </View>
-                    ))}
+        {/* Real Map View */}
+        <MapView
+          style={{ flex: 1 }}
+          region={region}
+          onRegionChangeComplete={setRegion}
+          showsUserLocation={true}
+          showsMyLocationButton={true}
+        >
+          {/* User Location Marker - shown by showsUserLocation */}
+
+          {/* Campsite Markers */}
+          {filteredCampsites.map((site) => (
+            <Marker
+              key={site.id}
+              coordinate={{
+                latitude: site.latitude,
+                longitude: site.longitude,
+              }}
+              title={site.name}
+              description={site.description}
+              onCalloutPress={() => handleCampsitePress(site.id)}
+            >
+              <View className="items-center">
+                <Text style={{ fontSize: 30 }}>🏕️</Text>
+                {site.isPrivate && (
+                  <View className="bg-orange-500 px-2 py-0.5 rounded-full -mt-1">
+                    <Text className="text-white text-xs font-bold">🔒</Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                )}
+              </View>
+            </Marker>
+          ))}
+        </MapView>
+
+        {/* Nearby Campsites List */}
+        <View
+          className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-lg"
+          style={{ maxHeight: "40%" }}
+        >
+          <View className="px-4 pt-4 pb-2 border-b border-gray-200">
+            <Text className="text-lg font-bold text-gray-800">
+              Nearby Campsites
+            </Text>
           </View>
-        </ScrollView>
+          <ScrollView className="px-4" showsVerticalScrollIndicator={false}>
+            <View className="py-2">
+              {filteredCampsites.map((site) => (
+                <TouchableOpacity
+                  key={site.id}
+                  className="bg-gray-50 rounded-xl mb-3 p-4 shadow-sm"
+                  onPress={() => handleCampsitePress(site.id)}
+                >
+                  <View className="flex-row items-start">
+                    <Text className="text-4xl mr-3">🏕️</Text>
+                    <View className="flex-1">
+                      <View className="flex-row items-center justify-between">
+                        <Text className="text-base font-bold text-gray-800 flex-1">
+                          {site.name}
+                        </Text>
+                        {site.isPrivate && (
+                          <View className="bg-orange-500 px-2 py-1 rounded-full ml-2">
+                            <Text className="text-white text-xs font-semibold">
+                              Private
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text
+                        className="text-gray-600 text-sm mt-1"
+                        numberOfLines={2}
+                      >
+                        {site.description}
+                      </Text>
+                      {site.distance !== null && (
+                        <Text className="text-orange-500 font-semibold text-sm mt-1">
+                          {site.distance < 1
+                            ? `${(site.distance * 5280).toFixed(0)} ft away`
+                            : `${site.distance.toFixed(1)} miles away`}
+                        </Text>
+                      )}
+                      <View className="flex-row flex-wrap mt-2">
+                        {site.amenities.slice(0, 2).map((amenity, index) => (
+                          <View
+                            key={index}
+                            className="bg-white px-2 py-1 rounded-full mr-2 mt-1"
+                          >
+                            <Text className="text-xs text-gray-600">
+                              {amenity}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
       </View>
 
       {/* Add Campsite Modal */}

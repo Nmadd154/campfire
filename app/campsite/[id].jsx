@@ -1,22 +1,29 @@
-import { campsites, currentUser, posts, thingsToDo } from "@/data/mockData";
+import { useAuth } from "@/context/AuthContext";
+import { campsites, posts, thingsToDo } from "@/data/mockData";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function CampsiteDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("posts");
   const [showPostModal, setShowPostModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [newPost, setNewPost] = useState("");
   const [localPosts, setLocalPosts] = useState(posts);
+  const [newActivity, setNewActivity] = useState("");
+  const [editableCampsite, setEditableCampsite] = useState(null);
 
   const campsite = campsites.find((site) => site.id === parseInt(id));
   const campsitePosts = localPosts.filter(
@@ -32,17 +39,31 @@ export default function CampsiteDetailScreen() {
     );
   }
 
+  // Check if user owns this campsite
+  const isOwner = isAuthenticated && user && campsite.addedBy === user.id;
+  const canEdit = isOwner && campsite.isPrivate;
+
+  if (!campsite) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <Text className="text-gray-600">Campsite not found</Text>
+      </View>
+    );
+  }
+
   const handleLikePost = (postId) => {
+    if (!isAuthenticated || !user) return;
+
     setLocalPosts((prevPosts) =>
       prevPosts.map((post) => {
         if (post.id === postId) {
-          const isLiked = post.likedBy.includes(currentUser.id);
+          const isLiked = post.likedBy.includes(user.id);
           return {
             ...post,
             likes: isLiked ? post.likes - 1 : post.likes + 1,
             likedBy: isLiked
-              ? post.likedBy.filter((id) => id !== currentUser.id)
-              : [...post.likedBy, currentUser.id],
+              ? post.likedBy.filter((id) => id !== user.id)
+              : [...post.likedBy, user.id],
           };
         }
         return post;
@@ -51,13 +72,17 @@ export default function CampsiteDetailScreen() {
   };
 
   const handleAddPost = () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert("Login Required", "Please log in to post.");
+      return;
+    }
     if (newPost.trim()) {
       const post = {
         id: Date.now(),
         campsiteId: parseInt(id),
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userAvatar: currentUser.avatar,
+        userId: user.id,
+        userName: user.name,
+        userAvatar: user.avatar,
         content: newPost,
         likes: 0,
         likedBy: [],
@@ -67,6 +92,33 @@ export default function CampsiteDetailScreen() {
       setLocalPosts([post, ...localPosts]);
       setNewPost("");
       setShowPostModal(false);
+    }
+  };
+
+  const handleEditCampsite = () => {
+    setEditableCampsite({ ...campsite });
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = () => {
+    // In a real app, this would update the database
+    Alert.alert("Success", "Campsite updated successfully!");
+    setShowEditModal(false);
+  };
+
+  const handleSuggestActivity = () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert("Login Required", "Please log in to suggest activities.");
+      return;
+    }
+    if (newActivity.trim()) {
+      // In a real app, this would send suggestion to database
+      Alert.alert(
+        "Suggestion Sent",
+        `Your suggestion "${newActivity}" has been sent to the campsite owner for approval.`,
+      );
+      setNewActivity("");
+      setShowSuggestModal(false);
     }
   };
 
@@ -84,10 +136,22 @@ export default function CampsiteDetailScreen() {
 
       {/* Campsite Info */}
       <View className="bg-white p-4 border-b border-gray-200">
-        <Text className="text-2xl font-bold text-gray-800">
-          {campsite.name}
-        </Text>
-        <Text className="text-gray-600 mt-2">{campsite.description}</Text>
+        <View className="flex-row justify-between items-start">
+          <View className="flex-1">
+            <Text className="text-2xl font-bold text-gray-800">
+              {campsite.name}
+            </Text>
+            <Text className="text-gray-600 mt-2">{campsite.description}</Text>
+          </View>
+          {canEdit && (
+            <TouchableOpacity
+              className="bg-orange-500 px-3 py-2 rounded-lg ml-2"
+              onPress={handleEditCampsite}
+            >
+              <Text className="text-white font-semibold text-sm">✏️ Edit</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Amenities */}
         <View className="flex-row flex-wrap mt-3">
@@ -152,7 +216,7 @@ export default function CampsiteDetailScreen() {
 
             {/* Posts */}
             {campsitePosts.map((post) => {
-              const isLiked = post.likedBy.includes(currentUser.id);
+              const isLiked = user && post.likedBy.includes(user.id);
               return (
                 <View
                   key={post.id}
@@ -270,9 +334,21 @@ export default function CampsiteDetailScreen() {
 
         {activeTab === "activities" && (
           <View className="p-4">
-            <Text className="text-lg font-bold text-gray-800 mb-4">
-              Popular Activities
-            </Text>
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-lg font-bold text-gray-800">
+                Popular Activities
+              </Text>
+              {!campsite.isPrivate && isAuthenticated && (
+                <TouchableOpacity
+                  className="bg-orange-500 px-3 py-2 rounded-lg"
+                  onPress={() => setShowSuggestModal(true)}
+                >
+                  <Text className="text-white font-semibold text-sm">
+                    💡 Suggest
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
             {activities.map((activity, index) => (
               <View
                 key={index}
@@ -286,6 +362,19 @@ export default function CampsiteDetailScreen() {
                 </Text>
               </View>
             ))}
+            {activities.length === 0 && (
+              <View className="items-center py-12">
+                <Text className="text-6xl mb-4">🏕️</Text>
+                <Text className="text-gray-600 text-center">
+                  No activities listed yet
+                </Text>
+                {!campsite.isPrivate && (
+                  <Text className="text-gray-500 text-sm text-center mt-2">
+                    Be the first to suggest one!
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -321,6 +410,127 @@ export default function CampsiteDetailScreen() {
             >
               <Text className="text-white text-center font-bold text-lg">
                 Post
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Campsite Modal (for private campsite owners) */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6 h-[70%]">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-2xl font-bold">Edit Campsite</Text>
+              <TouchableOpacity onPress={() => setShowEditModal(false)}>
+                <Text className="text-2xl text-gray-400">✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">
+                  Campsite Name
+                </Text>
+                <TextInput
+                  className="bg-gray-100 rounded-lg px-4 py-3"
+                  value={editableCampsite?.name}
+                  onChangeText={(text) =>
+                    setEditableCampsite({ ...editableCampsite, name: text })
+                  }
+                />
+              </View>
+
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">
+                  Description
+                </Text>
+                <TextInput
+                  className="bg-gray-100 rounded-lg px-4 py-3 h-24"
+                  placeholder="Describe the campsite..."
+                  multiline
+                  value={editableCampsite?.description}
+                  onChangeText={(text) =>
+                    setEditableCampsite({
+                      ...editableCampsite,
+                      description: text,
+                    })
+                  }
+                />
+              </View>
+
+              <View className="mb-4">
+                <Text className="text-gray-700 font-semibold mb-2">
+                  Amenities (comma separated)
+                </Text>
+                <TextInput
+                  className="bg-gray-100 rounded-lg px-4 py-3 h-20"
+                  placeholder="Fire pit, Restrooms, Hiking trails"
+                  multiline
+                  value={editableCampsite?.amenities.join(", ")}
+                  onChangeText={(text) =>
+                    setEditableCampsite({
+                      ...editableCampsite,
+                      amenities: text.split(",").map((s) => s.trim()),
+                    })
+                  }
+                />
+              </View>
+
+              <TouchableOpacity
+                className="bg-orange-500 rounded-lg py-4 mt-4"
+                onPress={handleSaveEdit}
+              >
+                <Text className="text-white text-center font-bold text-lg">
+                  Save Changes
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Suggest Activity Modal (for public campsites) */}
+      <Modal
+        visible={showSuggestModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSuggestModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6 h-[60%]">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-2xl font-bold">Suggest Activity</Text>
+              <TouchableOpacity onPress={() => setShowSuggestModal(false)}>
+                <Text className="text-2xl text-gray-400">✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-gray-600 mb-4">
+              Suggest a new activity for other campers! Your suggestion will be
+              sent to the campsite owner for approval.
+            </Text>
+
+            <TextInput
+              className="bg-gray-100 rounded-lg px-4 py-3 h-24 text-gray-800"
+              placeholder="e.g., Rock climbing, Bird watching, Fishing"
+              multiline
+              value={newActivity}
+              onChangeText={setNewActivity}
+              autoFocus
+            />
+
+            <TouchableOpacity
+              className="bg-orange-500 rounded-lg py-4 mt-4"
+              onPress={handleSuggestActivity}
+            >
+              <Text className="text-white text-center font-bold text-lg">
+                Send Suggestion
               </Text>
             </TouchableOpacity>
           </View>

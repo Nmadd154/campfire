@@ -33,13 +33,13 @@ export const users = [
 export const campsites = [
   {
     id: 1,
-    name: "Yosemite Valley",
-    latitude: 37.7456,
-    longitude: -119.5936,
-    description: "Stunning views of Half Dome and El Capitan",
+    name: "Waldo Lake Wilderness",
+    latitude: 43.7406,
+    longitude: -122.0428,
+    description: "Crystal clear alpine lake with pristine wilderness camping",
     isPrivate: false,
     addedBy: 1,
-    amenities: ["Fire pit", "Picnic tables", "Restrooms", "Hiking trails"],
+    amenities: ["Fire pit", "Picnic tables", "Boat launch", "Hiking trails"],
     photos: [
       "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=400",
       "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?w=400",
@@ -47,39 +47,45 @@ export const campsites = [
   },
   {
     id: 2,
-    name: "Big Sur Retreat",
-    latitude: 36.2704,
-    longitude: -121.8081,
-    description: "Coastal camping with ocean views",
+    name: "McKenzie River Retreat",
+    latitude: 44.1576,
+    longitude: -122.2153,
+    description: "Riverside camping with stunning waterfalls nearby",
     isPrivate: false,
     addedBy: 1,
-    amenities: ["Beach access", "Fire pit", "Scenic views"],
+    amenities: ["River access", "Fire pit", "Fishing", "Scenic views"],
     photos: [
       "https://images.unsplash.com/photo-1537565732439-5c85c6f9ab60?w=400",
     ],
   },
   {
     id: 3,
-    name: "Secret Mountain Spot",
-    latitude: 37.8651,
-    longitude: -119.5383,
-    description: "Hidden gem with amazing stargazing",
+    name: "Secret Spencer Butte Spot",
+    latitude: 43.9875,
+    longitude: -123.0892,
+    description: "Hidden gem near Eugene with amazing sunset views",
     isPrivate: true,
     addedBy: 1,
-    amenities: ["Fire pit", "Lake access", "Wildlife viewing"],
+    amenities: ["Fire pit", "Hiking trails", "Wildlife viewing"],
     photos: [
       "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d?w=400",
     ],
   },
   {
     id: 4,
-    name: "Lake Tahoe Base",
-    latitude: 39.0968,
-    longitude: -120.0324,
-    description: "Perfect for water activities and hiking",
+    name: "Cottage Grove Reservoir",
+    latitude: 43.6893,
+    longitude: -122.9847,
+    description: "Perfect for water activities and family camping",
     isPrivate: false,
     addedBy: 2,
-    amenities: ["Lake access", "Boat launch", "Fire pit", "Showers"],
+    amenities: [
+      "Lake access",
+      "Boat launch",
+      "Fire pit",
+      "Showers",
+      "RV hookups",
+    ],
     photos: [
       "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=400",
     ],
@@ -94,7 +100,7 @@ export const posts = [
     userName: "Sarah Miller",
     userAvatar: "https://i.pravatar.cc/150?img=2",
     content:
-      "Amazing sunrise this morning! The view of Half Dome was incredible 🌄",
+      "Amazing sunrise this morning! The view of Waldo Lake was incredible 🌄",
     image: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=400",
     likes: 15,
     likedBy: [1, 3, 4],
@@ -116,7 +122,7 @@ export const posts = [
     userId: 3,
     userName: "Mike Davis",
     userAvatar: "https://i.pravatar.cc/150?img=3",
-    content: "Great hiking trails here. Did the Mirror Lake loop today!",
+    content: "Great hiking trails here. Did the Jim Weaver Loop trail today!",
     likes: 8,
     likedBy: [1, 2],
     comments: [],
@@ -259,3 +265,8 @@ export const thingsToDo = {
     "Beach volleyball",
   ],
 };
+
+// Pending suggestions for public campsites
+export const suggestions = [
+  // Example: { id: 1, campsiteId: 1, userId: 2, type: 'activity', content: 'Rock climbing', status: 'pending' }
+];

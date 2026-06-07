@@ -1,18 +1,35 @@
-import { currentUser, posts, trips } from "@/data/mockData";
+import { useAuth } from "@/context/AuthContext";
+import { posts, trips } from "@/data/mockData";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("trips");
 
-  const userPosts = posts.filter((post) => post.userId === currentUser.id);
-  const userTrips = trips.filter((trip) =>
-    trip.attendees.includes(currentUser.id),
-  );
+  const userPosts = posts.filter((post) => post.userId === user?.id);
+  const userTrips = trips.filter((trip) => trip.attendees.includes(user?.id));
   const pastTrips = userTrips.filter((trip) => trip.status === "past");
   const plannedTrips = userTrips.filter((trip) => trip.status === "planned");
+
+  if (!isAuthenticated || !user) {
+    return (
+      <View className="flex-1 items-center justify-center bg-gray-50">
+        <Text className="text-6xl mb-4">🔥</Text>
+        <Text className="text-gray-600 text-lg">
+          Please log in to view your profile
+        </Text>
+        <TouchableOpacity
+          className="bg-orange-500 px-6 py-3 rounded-lg mt-4"
+          onPress={() => router.replace("/login")}
+        >
+          <Text className="text-white font-bold">Go to Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-gray-50">
@@ -22,11 +39,22 @@ export default function ProfileScreen() {
           <View className="w-24 h-24 rounded-full bg-white items-center justify-center mb-3">
             <Text className="text-4xl">👤</Text>
           </View>
-          <Text className="text-white text-2xl font-bold">
-            {currentUser.name}
+          <Text className="text-white text-2xl font-bold">{user.name}</Text>
+          <Text className="text-white opacity-80 mt-1">
+            {user.bio || "Happy camper! 🏕️"}
           </Text>
-          <Text className="text-white opacity-80 mt-1">{currentUser.bio}</Text>
         </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity
+          className="absolute top-12 right-4 bg-white/20 px-3 py-2 rounded-lg"
+          onPress={() => {
+            logout();
+            router.replace("/login");
+          }}
+        >
+          <Text className="text-white font-semibold">Logout</Text>
+        </TouchableOpacity>
 
         {/* Stats */}
         <View className="flex-row justify-around mt-6 bg-orange-600 rounded-lg py-3">

@@ -1,27 +1,33 @@
+import { useAuth } from "@/context/AuthContext";
+import { users } from "@/data/mockData";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleLogin = () => {
-    // Mock login - in a real app, you'd validate credentials
-    if (email && password) {
+    // Mock login - find user by email
+    const user = users.find((u) => u.email === email);
+    if (user && password) {
+      login(user);
       router.replace("/(tabs)");
     }
   };
 
   const handleGuestLogin = () => {
+    login({ id: 0, name: "Guest", email: "guest@campfire.app", isGuest: true });
     router.replace("/(tabs)");
   };
 
@@ -90,7 +96,7 @@ export default function LoginScreen() {
         {/* Sign up link */}
         <View className="flex-row justify-center mt-8">
           <Text className="text-white">Don't have an account? </Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/register")}>
             <Text className="text-white font-bold underline">Sign Up</Text>
           </TouchableOpacity>
         </View>
