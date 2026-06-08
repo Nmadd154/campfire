@@ -8,7 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "../global.css";
 
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider } from "@/context/AuthContextAppwrite";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export const unstable_settings = {
@@ -26,10 +26,11 @@ export default function RootLayout() {
           <Stack.Screen name="register" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
-            name="campsite/[id]"
-            options={{ title: "Campsite Details" }}
+            name="create-campsite"
+            options={{ headerShown: false }}
           />
-          <Stack.Screen name="trip/[id]" options={{ title: "Trip Details" }} />
+          <Stack.Screen name="campsite/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="trip/[id]" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

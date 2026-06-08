@@ -1,18 +1,46 @@
-import { useAuth } from "@/context/AuthContext";
-import { posts, trips } from "@/data/mockData";
+import { useAuth } from "@/context/AuthContextAppwrite";
+import { posts, suggestions, trips } from "@/data/mockData";
+import { campsiteService } from "@/services/appwriteService";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("trips");
+  const [userCampsites, setUserCampsites] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch user's campsites from Appwrite
+  useEffect(() => {
+    if (user?.id) {
+      loadUserCampsites();
+    }
+  }, [user?.id]);
+
+  const loadUserCampsites = async () => {
+    try {
+      setIsLoading(true);
+      const allCampsites = await campsiteService.getAllCampsites();
+      const myCampsites = allCampsites.filter(
+        (campsite) => campsite.addedBy === user.id,
+      );
+      setUserCampsites(myCampsites);
+    } catch (error) {
+      console.error("Error loading user campsites:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const userPosts = posts.filter((post) => post.userId === user?.id);
   const userTrips = trips.filter((trip) => trip.attendees.includes(user?.id));
   const pastTrips = userTrips.filter((trip) => trip.status === "past");
   const plannedTrips = userTrips.filter((trip) => trip.status === "planned");
+  const userSuggestions = suggestions.filter(
+    (suggestion) => suggestion.campsiteOwnerId === user?.id,
+  );
 
   if (!isAuthenticated || !user) {
     return (
@@ -72,9 +100,15 @@ export default function ProfileScreen() {
           </View>
           <View className="items-center">
             <Text className="text-white text-2xl font-bold">
-              {userPosts.length}
+              {userCampsites.length}
             </Text>
-            <Text className="text-white opacity-80 text-sm">Posts</Text>
+            <Text className="text-white opacity-80 text-sm">Campsites</Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-white text-2xl font-bold">
+              {userSuggestions.length}
+            </Text>
+            <Text className="text-white opacity-80 text-sm">Requests</Text>
           </View>
         </View>
       </View>
@@ -92,23 +126,23 @@ export default function ProfileScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          className={`flex-1 py-4 ${activeTab === "posts" ? "border-b-2 border-orange-500" : ""}`}
-          onPress={() => setActiveTab("posts")}
+          className={`flex-1 py-4 ${activeTab === "campsites" ? "border-b-2 border-orange-500" : ""}`}
+          onPress={() => setActiveTab("campsites")}
         >
           <Text
-            className={`text-center font-semibold ${activeTab === "posts" ? "text-orange-500" : "text-gray-600"}`}
+            className={`text-center font-semibold ${activeTab === "campsites" ? "text-orange-500" : "text-gray-600"}`}
           >
-            Posts
+            Campsites
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          className={`flex-1 py-4 ${activeTab === "albums" ? "border-b-2 border-orange-500" : ""}`}
-          onPress={() => setActiveTab("albums")}
+          className={`flex-1 py-4 ${activeTab === "suggestions" ? "border-b-2 border-orange-500" : ""}`}
+          onPress={() => setActiveTab("suggestions")}
         >
           <Text
-            className={`text-center font-semibold ${activeTab === "albums" ? "text-orange-500" : "text-gray-600"}`}
+            className={`text-center font-semibold ${activeTab === "suggestions" ? "text-orange-500" : "text-gray-600"}`}
           >
-            Albums
+            Requests
           </Text>
         </TouchableOpacity>
       </View>
@@ -199,71 +233,147 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        {activeTab === "posts" && (
+        {activeTab === "campsites" && (
           <View className="p-4">
-            {userPosts.map((post) => (
-              <View
-                key={post.id}
-                className="bg-white rounded-xl mb-4 overflow-hidden shadow-sm"
+            <Text className="text-lg font-bold text-gray-800 mb-3">
+              My Campsites
+            </Text>
+            {userCampsites.map((campsite) => (
+              <TouchableOpacity
+                key={campsite.$id}
+                className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+                onPress={() => router.push(`/campsite/${campsite.$id}`)}
               >
-                {post.image && (
-                  <View className="h-48 bg-gray-200 items-center justify-center">
-                    <Text className="text-4xl">🏞️</Text>
-                  </View>
-                )}
-                <View className="p-4">
-                  <Text className="text-gray-800 mb-2">{post.content}</Text>
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-gray-500 text-sm">
-                      {post.timestamp}
+                <View className="flex-row items-center mb-2">
+                  <Text className="text-3xl mr-3">🏕️</Text>
+                  <View className="flex-1">
+                    <Text className="text-lg font-bold text-gray-800">
+                      {campsite.name}
                     </Text>
-                    <View className="flex-row items-center">
-                      <Text className="text-gray-600 mr-4">
-                        ❤️ {post.likes}
-                      </Text>
-                      <Text className="text-gray-600">
-                        💬 {post.comments.length}
+                    <Text className="text-gray-600 text-sm" numberOfLines={2}>
+                      {campsite.description}
+                    </Text>
+                  </View>
+                  {campsite.isPrivate && (
+                    <View className="bg-orange-100 px-2 py-1 rounded-full">
+                      <Text className="text-orange-700 text-xs font-semibold">
+                        🔒 Private
                       </Text>
                     </View>
-                  </View>
+                  )}
                 </View>
-              </View>
+                <View className="flex-row items-center mt-2">
+                  <Text className="text-gray-500 text-sm mr-4">
+                    📍 {campsite.amenities.length} amenities
+                  </Text>
+                  <Text className="text-gray-500 text-sm">
+                    📸 {campsite.photos.length} photos
+                  </Text>
+                </View>
+              </TouchableOpacity>
             ))}
 
-            {userPosts.length === 0 && (
+            {userCampsites.length === 0 && (
               <View className="items-center py-12">
-                <Text className="text-6xl mb-4">📝</Text>
-                <Text className="text-gray-600 text-center">No posts yet</Text>
+                <Text className="text-6xl mb-4">🏕️</Text>
+                <Text className="text-gray-600 text-center">
+                  No campsites created yet
+                </Text>
                 <Text className="text-gray-500 text-sm text-center mt-2">
-                  Share your camping adventures!
+                  Be the first to add a campsite!
                 </Text>
               </View>
             )}
           </View>
         )}
 
-        {activeTab === "albums" && (
+        {activeTab === "suggestions" && (
           <View className="p-4">
-            <View className="flex-row flex-wrap">
-              {[1, 2, 3, 4].map((album) => (
+            <Text className="text-lg font-bold text-gray-800 mb-3">
+              Pending Requests
+            </Text>
+            {userSuggestions.map((suggestion) => {
+              const campsite = campsites.find(
+                (c) => c.id === suggestion.campsiteId,
+              );
+              return (
                 <View
-                  key={album}
-                  className="w-[48%] mr-[4%] mb-4 bg-white rounded-xl overflow-hidden shadow-sm"
+                  key={suggestion.id}
+                  className="bg-white rounded-xl p-4 mb-3 shadow-sm"
                 >
-                  <View className="h-32 bg-blue-500 items-center justify-center">
-                    <Text className="text-4xl">📸</Text>
+                  <View className="flex-row items-center justify-between mb-2">
+                    <View className="flex-1">
+                      <Text className="text-sm text-gray-500 mb-1">
+                        From: {suggestion.userName}
+                      </Text>
+                      <Text className="text-base font-semibold text-gray-800">
+                        {campsite?.name}
+                      </Text>
+                    </View>
+                    <View className="bg-yellow-100 px-3 py-1 rounded-full">
+                      <Text className="text-yellow-700 text-xs font-semibold">
+                        Pending
+                      </Text>
+                    </View>
                   </View>
-                  <View className="p-3">
-                    <Text className="font-bold text-gray-800">
-                      Album {album}
+                  <View className="bg-gray-50 p-3 rounded-lg mb-3">
+                    <Text className="text-gray-700 text-sm mb-1">
+                      {suggestion.type === "activity"
+                        ? "Suggested Activity:"
+                        : "Suggested Change:"}
                     </Text>
-                    <Text className="text-gray-600 text-sm">
-                      {Math.floor(Math.random() * 50) + 10} photos
+                    <Text className="text-gray-900 font-medium">
+                      {suggestion.content}
                     </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center">
+                    <Text className="text-gray-500 text-xs">
+                      Submitted: {suggestion.submittedAt}
+                    </Text>
+                    <View className="flex-row">
+                      <TouchableOpacity
+                        className="bg-green-500 px-4 py-2 rounded-lg mr-2"
+                        onPress={() => {
+                          Alert.alert(
+                            "Approved",
+                            `You approved the suggestion: "${suggestion.content}"`,
+                          );
+                        }}
+                      >
+                        <Text className="text-white text-sm font-semibold">
+                          ✓ Approve
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-red-500 px-4 py-2 rounded-lg"
+                        onPress={() => {
+                          Alert.alert(
+                            "Rejected",
+                            "You rejected this suggestion.",
+                          );
+                        }}
+                      >
+                        <Text className="text-white text-sm font-semibold">
+                          ✗ Reject
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              ))}
-            </View>
+              );
+            })}
+
+            {userSuggestions.length === 0 && (
+              <View className="items-center py-12">
+                <Text className="text-6xl mb-4">📬</Text>
+                <Text className="text-gray-600 text-center">
+                  No pending requests
+                </Text>
+                <Text className="text-gray-500 text-sm text-center mt-2">
+                  Suggestions from other users will appear here
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

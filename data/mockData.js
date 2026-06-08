@@ -78,7 +78,7 @@ export const campsites = [
     longitude: -122.9847,
     description: "Perfect for water activities and family camping",
     isPrivate: false,
-    addedBy: 2,
+    addedBy: 1,
     amenities: [
       "Lake access",
       "Boat launch",
@@ -268,5 +268,37 @@ export const thingsToDo = {
 
 // Pending suggestions for public campsites
 export const suggestions = [
-  // Example: { id: 1, campsiteId: 1, userId: 2, type: 'activity', content: 'Rock climbing', status: 'pending' }
+  {
+    id: 1,
+    campsiteId: 1,
+    campsiteOwnerId: 1,
+    userId: 2,
+    userName: "Sarah Miller",
+    type: "activity",
+    content: "Rock climbing at nearby cliffs",
+    status: "pending",
+    submittedAt: "2026-06-05",
+  },
+  {
+    id: 2,
+    campsiteId: 2,
+    campsiteOwnerId: 1,
+    userId: 3,
+    userName: "Mike Davis",
+    type: "activity",
+    content: "Kayaking tours on McKenzie River",
+    status: "pending",
+    submittedAt: "2026-06-06",
+  },
+  {
+    id: 3,
+    campsiteId: 4,
+    campsiteOwnerId: 1,
+    userId: 4,
+    userName: "Emma Wilson",
+    type: "amenity",
+    content: "Add: Playground area",
+    status: "pending",
+    submittedAt: "2026-06-07",
+  },
 ];

@@ -1,33 +1,49 @@
-import { campsites } from "@/data/mockData";
+import { campsiteService } from "@/services/appwriteService";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Modal,
+  ActivityIndicator,
+  Alert,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 
 export default function MapScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newCampsite, setNewCampsite] = useState({
-    name: "",
-    description: "",
-    isPrivate: false,
-  });
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
+  const [campsitesData, setCampsitesData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [region, setRegion] = useState({
     latitude: 44.0521, // Eugene, Oregon
     longitude: -123.0868,
     latitudeDelta: 2,
     longitudeDelta: 2,
   });
+
+  // Load campsites data
+  useEffect(() => {
+    loadCampsites();
+  }, []);
+
+  const loadCampsites = async () => {
+    try {
+      setIsLoading(true);
+      const data = await campsiteService.getAllCampsites();
+      setCampsitesData(data);
+    } catch (error) {
+      console.error("Error loading campsites:", error);
+      Alert.alert("Error", "Failed to load campsites");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -73,7 +89,7 @@ export default function MapScreen() {
     return R * c;
   };
 
-  const filteredCampsites = campsites
+  const filteredCampsites = campsitesData
     .filter((site) =>
       site.name.toLowerCase().includes(searchQuery.toLowerCase()),
     )
@@ -94,18 +110,31 @@ export default function MapScreen() {
     router.push(`/campsite/${campsiteId}`);
   };
 
+  const handleMapPress = (event) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setSelectedLocation({ latitude, longitude });
+  };
+
+  const handleCreateCampsite = () => {
+    if (selectedLocation) {
+      router.push(
+        `/create-campsite?latitude=${selectedLocation.latitude}&longitude=${selectedLocation.longitude}`,
+      );
+      setSelectedLocation(null);
+    }
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       {/* Header */}
       <View className="bg-orange-500 pt-12 pb-4 px-4">
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-white text-2xl font-bold">🔥 Campfire</Text>
-          <TouchableOpacity
-            className="bg-orange-600 px-4 py-2 rounded-full"
-            onPress={() => setShowAddModal(true)}
-          >
-            <Text className="text-white font-semibold">+ Add Site</Text>
-          </TouchableOpacity>
+          <View className="bg-orange-600 px-4 py-2 rounded-full">
+            <Text className="text-white font-semibold text-xs">
+              Tap map to add 📍
+            </Text>
+          </View>
         </View>
 
         {/* Search Bar */}
@@ -122,6 +151,13 @@ export default function MapScreen() {
 
       {/* Map View with Campsite Pins */}
       <View className="flex-1">
+        {isLoading && (
+          <View className="absolute top-0 left-0 right-0 bottom-0 bg-gray-100 items-center justify-center z-50">
+            <ActivityIndicator size="large" color="#ea580c" />
+            <Text className="text-gray-600 mt-4">Loading campsites...</Text>
+          </View>
+        )}
+
         <View className="absolute top-4 left-4 right-4 bg-white rounded-lg p-3 shadow-md z-10">
           <Text className="text-gray-600 text-sm">
             📍 Showing {filteredCampsites.length} nearby campsites
@@ -133,22 +169,37 @@ export default function MapScreen() {
           style={{ flex: 1 }}
           region={region}
           onRegionChangeComplete={setRegion}
+          onPress={handleMapPress}
           showsUserLocation={true}
           showsMyLocationButton={true}
         >
           {/* User Location Marker - shown by showsUserLocation */}
 
+          {/* Temporary Selected Location Marker */}
+          {selectedLocation && (
+            <Marker
+              coordinate={selectedLocation}
+              pinColor="orange"
+              title="New Campsite"
+              description="Tap 'Create Campsite' to add details"
+            >
+              <View className="items-center">
+                <Text style={{ fontSize: 40 }}>📍</Text>
+              </View>
+            </Marker>
+          )}
+
           {/* Campsite Markers */}
           {filteredCampsites.map((site) => (
             <Marker
-              key={site.id}
+              key={site.$id}
               coordinate={{
                 latitude: site.latitude,
                 longitude: site.longitude,
               }}
               title={site.name}
               description={site.description}
-              onCalloutPress={() => handleCampsitePress(site.id)}
+              onCalloutPress={() => handleCampsitePress(site.$id)}
             >
               <View className="items-center">
                 <Text style={{ fontSize: 30 }}>🏕️</Text>
@@ -161,6 +212,41 @@ export default function MapScreen() {
             </Marker>
           ))}
         </MapView>
+
+        {/* Create Campsite Button (shows when location is selected) */}
+        {selectedLocation && (
+          <View className="absolute top-20 left-4 right-4 bg-white rounded-xl shadow-lg p-4 z-20">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-gray-800 font-bold text-base mb-1">
+                  📍 Location Selected
+                </Text>
+                <Text className="text-gray-600 text-xs">
+                  {selectedLocation.latitude.toFixed(4)},{" "}
+                  {selectedLocation.longitude.toFixed(4)}
+                </Text>
+              </View>
+              <View className="flex-row">
+                <TouchableOpacity
+                  className="bg-gray-200 px-3 py-2 rounded-lg mr-2"
+                  onPress={() => setSelectedLocation(null)}
+                >
+                  <Text className="text-gray-700 font-semibold text-sm">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-orange-500 px-4 py-2 rounded-lg"
+                  onPress={handleCreateCampsite}
+                >
+                  <Text className="text-white font-semibold text-sm">
+                    Create Campsite
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Nearby Campsites List */}
         <View
@@ -176,9 +262,9 @@ export default function MapScreen() {
             <View className="py-2">
               {filteredCampsites.map((site) => (
                 <TouchableOpacity
-                  key={site.id}
+                  key={site.$id}
                   className="bg-gray-50 rounded-xl mb-3 p-4 shadow-sm"
-                  onPress={() => handleCampsitePress(site.id)}
+                  onPress={() => handleCampsitePress(site.$id)}
                 >
                   <View className="flex-row items-start">
                     <Text className="text-4xl mr-3">🏕️</Text>
@@ -228,94 +314,6 @@ export default function MapScreen() {
           </ScrollView>
         </View>
       </View>
-
-      {/* Add Campsite Modal */}
-      <Modal
-        visible={showAddModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl p-6 h-[70%]">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-bold">Add New Campsite</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <Text className="text-2xl text-gray-400">✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView>
-              <View className="mb-4">
-                <Text className="text-gray-700 font-semibold mb-2">
-                  Campsite Name
-                </Text>
-                <TextInput
-                  className="bg-gray-100 rounded-lg px-4 py-3"
-                  placeholder="Enter campsite name"
-                  value={newCampsite.name}
-                  onChangeText={(text) =>
-                    setNewCampsite({ ...newCampsite, name: text })
-                  }
-                />
-              </View>
-
-              <View className="mb-4">
-                <Text className="text-gray-700 font-semibold mb-2">
-                  Description
-                </Text>
-                <TextInput
-                  className="bg-gray-100 rounded-lg px-4 py-3 h-24"
-                  placeholder="Describe the campsite..."
-                  multiline
-                  value={newCampsite.description}
-                  onChangeText={(text) =>
-                    setNewCampsite({ ...newCampsite, description: text })
-                  }
-                />
-              </View>
-
-              <TouchableOpacity
-                className="flex-row items-center mb-4"
-                onPress={() =>
-                  setNewCampsite({
-                    ...newCampsite,
-                    isPrivate: !newCampsite.isPrivate,
-                  })
-                }
-              >
-                <View
-                  className={`w-6 h-6 rounded border-2 mr-3 items-center justify-center ${newCampsite.isPrivate ? "bg-orange-500 border-orange-500" : "border-gray-300"}`}
-                >
-                  {newCampsite.isPrivate && (
-                    <Text className="text-white">✓</Text>
-                  )}
-                </View>
-                <Text className="text-gray-700">
-                  Keep this campsite private
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="bg-orange-500 rounded-lg py-4 mt-4"
-                onPress={() => {
-                  // In a real app, save the campsite
-                  setShowAddModal(false);
-                  setNewCampsite({
-                    name: "",
-                    description: "",
-                    isPrivate: false,
-                  });
-                }}
-              >
-                <Text className="text-white text-center font-bold text-lg">
-                  Add Campsite
-                </Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

@@ -1,17 +1,20 @@
-import { currentUser, trips, users } from "@/data/mockData";
-import { useLocalSearchParams } from "expo-router";
+import { useAuth } from "@/context/AuthContextAppwrite";
+import { trips, users } from "@/data/mockData";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [showPostModal, setShowPostModal] = useState(false);
   const [newPost, setNewPost] = useState("");
@@ -25,10 +28,8 @@ export default function TripDetailScreen() {
     );
   }
 
-  const attendeeDetails = users.filter((user) =>
-    trip.attendees.includes(user.id),
-  );
-  const isOrganizer = trip.organizer === currentUser.id;
+  const attendeeDetails = users.filter((u) => trip.attendees.includes(u.id));
+  const isOrganizer = user && trip.organizer === user.id;
 
   const togglePersonalChecklistItem = (itemId) => {
     setTrip({
@@ -49,12 +50,12 @@ export default function TripDetailScreen() {
   };
 
   const handleAddPost = () => {
-    if (newPost.trim()) {
+    if (newPost.trim() && user) {
       const post = {
         id: Date.now(),
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userAvatar: currentUser.avatar,
+        userId: user.id,
+        userName: user.name,
+        userAvatar: user.avatar,
         content: newPost,
         timestamp: "Just now",
         comments: [],
@@ -88,8 +89,19 @@ export default function TripDetailScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
+      {/* Back Button */}
+      <View className="bg-white pt-12 pb-2 px-4 border-b border-gray-200">
+        <TouchableOpacity
+          className="flex-row items-center py-2"
+          onPress={() => router.back()}
+        >
+          <Text className="text-orange-600 text-lg mr-2">←</Text>
+          <Text className="text-orange-600 text-base font-semibold">Back</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Header */}
-      <View className="bg-orange-500 pt-12 pb-6 px-4">
+      <View className="bg-orange-500 pb-6 px-4 pt-4">
         <View className="flex-row items-center mb-3">
           <Text className="text-5xl mr-3">🏕️</Text>
           <View className="flex-1">

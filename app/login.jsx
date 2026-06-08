@@ -1,8 +1,9 @@
-import { useAuth } from "@/context/AuthContext";
-import { users } from "@/data/mockData";
+import { useAuth } from "@/context/AuthContextAppwrite";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Text,
@@ -14,21 +15,31 @@ import {
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
 
-  const handleLogin = () => {
-    // Mock login - find user by email
-    const user = users.find((u) => u.email === email);
-    if (user && password) {
-      login(user);
-      router.replace("/(tabs)");
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Missing Fields", "Please enter both email and password.");
+      return;
     }
-  };
 
-  const handleGuestLogin = () => {
-    login({ id: 0, name: "Guest", email: "guest@campfire.app", isGuest: true });
-    router.replace("/(tabs)");
+    setIsLoading(true);
+
+    try {
+      const result = await login(email, password);
+      if (result.success) {
+        router.replace("/(tabs)");
+      } else {
+        Alert.alert("Login Failed", result.error || "Invalid credentials");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      Alert.alert("Error", "An error occurred during login. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -75,21 +86,17 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            className="bg-white rounded-lg py-4 mt-6"
+            className={`rounded-lg py-4 mt-6 ${isLoading ? "bg-white/70" : "bg-white"}`}
             onPress={handleLogin}
+            disabled={isLoading}
           >
-            <Text className="text-orange-600 text-center font-bold text-lg">
-              Log In
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            className="bg-transparent border-2 border-white rounded-lg py-4 mt-3"
-            onPress={handleGuestLogin}
-          >
-            <Text className="text-white text-center font-bold text-lg">
-              Continue as Guest
-            </Text>
+            {isLoading ? (
+              <ActivityIndicator color="#ea580c" />
+            ) : (
+              <Text className="text-orange-600 text-center font-bold text-lg">
+                Log In
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 

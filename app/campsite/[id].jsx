@@ -1,8 +1,15 @@
-import { useAuth } from "@/context/AuthContext";
-import { campsites, posts, thingsToDo } from "@/data/mockData";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useAuth } from "@/context/AuthContextAppwrite";
+import { suggestions } from "@/data/mockData";
 import {
+  activityService,
+  campsiteService,
+  commentService,
+  postService,
+} from "@/services/appwriteService";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
   Alert,
   Modal,
   ScrollView,
@@ -20,16 +27,83 @@ export default function CampsiteDetailScreen() {
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const [showAddActivityModal, setShowAddActivityModal] = useState(false);
   const [newPost, setNewPost] = useState("");
-  const [localPosts, setLocalPosts] = useState(posts);
+  const [localPosts, setLocalPosts] = useState([]);
+  const [postComments, setPostComments] = useState({}); // Store comments by postId
+  const [newComment, setNewComment] = useState("");
+  const [commentingPostId, setCommentingPostId] = useState(null);
   const [newActivity, setNewActivity] = useState("");
   const [editableCampsite, setEditableCampsite] = useState(null);
+  const [localActivities, setLocalActivities] = useState([]);
+  const [campsite, setCampsite] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const campsite = campsites.find((site) => site.id === parseInt(id));
-  const campsitePosts = localPosts.filter(
-    (post) => post.campsiteId === parseInt(id),
+  // Fetch campsite and posts from Appwrite
+  useEffect(() => {
+    if (id) {
+      loadCampsiteData();
+    }
+  }, [id]);
+
+  const loadCampsiteData = async () => {
+    try {
+      setIsLoading(true);
+      // Load campsite (required)
+      const campsiteData = await campsiteService.getCampsite(id);
+      setCampsite(campsiteData);
+
+      // Load posts (optional - fail gracefully if collection doesn't exist)
+      try {
+        const postsData = await postService.getCampsitePosts(id);
+        setLocalPosts(postsData);
+
+        // Load comments for each post
+        const commentsMap = {};
+        for (const post of postsData) {
+          try {
+            const comments = await commentService.getPostComments(post.$id);
+            commentsMap[post.$id] = comments;
+          } catch (err) {
+            commentsMap[post.$id] = [];
+          }
+        }
+        setPostComments(commentsMap);
+      } catch (postError) {
+        console.log("Posts not available yet:", postError);
+        setLocalPosts([]);
+      }
+
+      // Load activities from Appwrite
+      try {
+        const activitiesData = await activityService.getCampsiteActivities(id);
+        setLocalActivities(activitiesData);
+      } catch (actError) {
+        console.log("Activities not available yet:", actError);
+        setLocalActivities([]);
+      }
+    } catch (error) {
+      console.error("Error loading campsite:", error);
+      Alert.alert("Error", "Failed to load campsite details");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Posts are already filtered by campsite ID from Appwrite
+  const campsitePosts = localPosts;
+  const campsiteSuggestions = suggestions.filter(
+    (suggestion) =>
+      suggestion.campsiteId === id && suggestion.status === "pending",
   );
-  const activities = thingsToDo[parseInt(id)] || [];
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
 
   if (!campsite) {
     return (
@@ -41,7 +115,7 @@ export default function CampsiteDetailScreen() {
 
   // Check if user owns this campsite
   const isOwner = isAuthenticated && user && campsite.addedBy === user.id;
-  const canEdit = isOwner && campsite.isPrivate;
+  const canEdit = isOwner; // Users can edit all their created campsites
 
   if (!campsite) {
     return (
@@ -51,47 +125,57 @@ export default function CampsiteDetailScreen() {
     );
   }
 
-  const handleLikePost = (postId) => {
+  const handleLikePost = async (postId) => {
     if (!isAuthenticated || !user) return;
 
-    setLocalPosts((prevPosts) =>
-      prevPosts.map((post) => {
-        if (post.id === postId) {
-          const isLiked = post.likedBy.includes(user.id);
-          return {
-            ...post,
-            likes: isLiked ? post.likes - 1 : post.likes + 1,
-            likedBy: isLiked
-              ? post.likedBy.filter((id) => id !== user.id)
-              : [...post.likedBy, user.id],
-          };
-        }
-        return post;
-      }),
-    );
+    try {
+      const post = localPosts.find((p) => p.$id === postId);
+      if (!post) return;
+
+      const likedBy = post.likedBy || [];
+
+      // Call Appwrite to toggle the like
+      const updatedPost = await postService.toggleLike(
+        postId,
+        user.id,
+        likedBy,
+      );
+
+      // Update local state
+      setLocalPosts((prevPosts) =>
+        prevPosts.map((p) => (p.$id === postId ? updatedPost : p)),
+      );
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      Alert.alert("Error", "Failed to update like");
+    }
   };
 
-  const handleAddPost = () => {
+  const handleAddPost = async () => {
     if (!isAuthenticated || !user) {
       Alert.alert("Login Required", "Please log in to post.");
       return;
     }
     if (newPost.trim()) {
-      const post = {
-        id: Date.now(),
-        campsiteId: parseInt(id),
-        userId: user.id,
-        userName: user.name,
-        userAvatar: user.avatar,
-        content: newPost,
-        likes: 0,
-        likedBy: [],
-        comments: [],
-        timestamp: "Just now",
-      };
-      setLocalPosts([post, ...localPosts]);
-      setNewPost("");
-      setShowPostModal(false);
+      try {
+        const post = await postService.createPost({
+          campsiteId: id,
+          userId: user.id,
+          userName: user.name,
+          content: newPost,
+          image: null,
+        });
+        setLocalPosts([post, ...localPosts]);
+        setNewPost("");
+        setShowPostModal(false);
+        Alert.alert("Success", "Your experience has been shared!");
+      } catch (error) {
+        console.error("Error creating post:", error);
+        Alert.alert(
+          "Error",
+          "Failed to share your experience. Please try again.",
+        );
+      }
     }
   };
 
@@ -100,10 +184,24 @@ export default function CampsiteDetailScreen() {
     setShowEditModal(true);
   };
 
-  const handleSaveEdit = () => {
-    // In a real app, this would update the database
-    Alert.alert("Success", "Campsite updated successfully!");
-    setShowEditModal(false);
+  const handleSaveEdit = async () => {
+    if (!editableCampsite) return;
+
+    try {
+      await campsiteService.updateCampsite(id, {
+        name: editableCampsite.name,
+        description: editableCampsite.description,
+        amenities: editableCampsite.amenities,
+      });
+
+      // Reload campsite to show updated data
+      await loadCampsiteData();
+      Alert.alert("Success", "Campsite updated successfully!");
+      setShowEditModal(false);
+    } catch (error) {
+      console.error("Error updating campsite:", error);
+      Alert.alert("Error", "Failed to update campsite. Please try again.");
+    }
   };
 
   const handleSuggestActivity = () => {
@@ -122,10 +220,86 @@ export default function CampsiteDetailScreen() {
     }
   };
 
+  const handleAddActivity = async () => {
+    if (!isAuthenticated || !user) {
+      Alert.alert("Login Required", "Please log in to add activities.");
+      return;
+    }
+    if (newActivity.trim()) {
+      try {
+        const activity = await activityService.addActivity({
+          campsiteId: id,
+          name: newActivity,
+          description: "",
+          addedBy: user.id,
+        });
+        setLocalActivities([...localActivities, activity]);
+        Alert.alert("Success", `Activity "${newActivity}" added successfully!`);
+        setNewActivity("");
+        setShowAddActivityModal(false);
+      } catch (error) {
+        console.error("Error adding activity:", error);
+        Alert.alert("Error", "Failed to add activity. Please try again.");
+      }
+    }
+  };
+
+  const handleAddComment = async (postId) => {
+    if (!isAuthenticated || !user) {
+      Alert.alert("Login Required", "Please log in to comment.");
+      return;
+    }
+    if (newComment.trim()) {
+      try {
+        const comment = await commentService.createComment({
+          postId: postId,
+          userId: user.id,
+          userName: user.name,
+          content: newComment,
+        });
+
+        // Update local state
+        setPostComments((prev) => ({
+          ...prev,
+          [postId]: [...(prev[postId] || []), comment],
+        }));
+
+        setNewComment("");
+        setCommentingPostId(null);
+        Alert.alert("Success", "Comment added!");
+      } catch (error) {
+        console.error("Error adding comment:", error);
+        Alert.alert("Error", "Failed to add comment. Please try again.");
+      }
+    }
+  };
+
+  const handleApproveSuggestion = (suggestion) => {
+    // In a real app, this would update the database
+    setLocalActivities([...localActivities, suggestion.content]);
+    Alert.alert("Approved", `Activity "${suggestion.content}" has been added!`);
+  };
+
+  const handleRejectSuggestion = (suggestion) => {
+    // In a real app, this would update the database
+    Alert.alert("Rejected", "Suggestion has been declined.");
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
+      {/* Back Button */}
+      <View className="bg-white pt-12 pb-2 px-4 border-b border-gray-200">
+        <TouchableOpacity
+          className="flex-row items-center py-2"
+          onPress={() => router.back()}
+        >
+          <Text className="text-orange-600 text-lg mr-2">←</Text>
+          <Text className="text-orange-600 text-base font-semibold">Back</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Header Image */}
-      <View className="h-56 bg-green-500 items-center justify-center">
+      <View className="h-48 bg-green-500 items-center justify-center">
         <Text className="text-8xl">🏕️</Text>
         {campsite.isPrivate && (
           <View className="absolute top-4 right-4 bg-orange-500 px-3 py-2 rounded-full">
@@ -155,14 +329,18 @@ export default function CampsiteDetailScreen() {
 
         {/* Amenities */}
         <View className="flex-row flex-wrap mt-3">
-          {campsite.amenities.map((amenity, index) => (
-            <View
-              key={index}
-              className="bg-gray-100 px-3 py-1 rounded-full mr-2 mt-2"
-            >
-              <Text className="text-sm text-gray-700">✓ {amenity}</Text>
-            </View>
-          ))}
+          {campsite.amenities && campsite.amenities.length > 0 ? (
+            campsite.amenities.map((amenity, index) => (
+              <View
+                key={index}
+                className="bg-gray-100 px-3 py-1 rounded-full mr-2 mt-2"
+              >
+                <Text className="text-sm text-gray-700">✓ {amenity}</Text>
+              </View>
+            ))
+          ) : (
+            <Text className="text-sm text-gray-500">No amenities listed</Text>
+          )}
         </View>
       </View>
 
@@ -175,7 +353,7 @@ export default function CampsiteDetailScreen() {
           <Text
             className={`text-center font-semibold ${activeTab === "posts" ? "text-orange-500" : "text-gray-600"}`}
           >
-            Posts ({campsitePosts.length})
+            Posts ({campsitePosts?.length || 0})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -215,89 +393,121 @@ export default function CampsiteDetailScreen() {
             </TouchableOpacity>
 
             {/* Posts */}
-            {campsitePosts.map((post) => {
-              const isLiked = user && post.likedBy.includes(user.id);
-              return (
-                <View
-                  key={post.id}
-                  className="bg-white rounded-xl mb-4 shadow-sm overflow-hidden"
-                >
-                  {/* Post Header */}
-                  <View className="flex-row items-center p-4 pb-2">
-                    <View className="w-10 h-10 bg-gray-300 rounded-full items-center justify-center mr-3">
-                      <Text className="text-xl">👤</Text>
+            {campsitePosts && campsitePosts.length > 0 ? (
+              campsitePosts.map((post) => {
+                const isLiked = user && post.likedBy?.includes(user.id);
+                return (
+                  <View
+                    key={post.$id}
+                    className="bg-white rounded-xl mb-4 shadow-sm overflow-hidden"
+                  >
+                    {/* Post Header */}
+                    <View className="flex-row items-center p-4 pb-2">
+                      <View className="w-10 h-10 bg-gray-300 rounded-full items-center justify-center mr-3">
+                        <Text className="text-xl">👤</Text>
+                      </View>
+                      <View className="flex-1">
+                        <Text className="font-semibold text-gray-800">
+                          {post.userName}
+                        </Text>
+                        <Text className="text-gray-500 text-xs">
+                          {post.timestamp}
+                        </Text>
+                      </View>
                     </View>
-                    <View className="flex-1">
-                      <Text className="font-semibold text-gray-800">
-                        {post.userName}
-                      </Text>
-                      <Text className="text-gray-500 text-xs">
-                        {post.timestamp}
-                      </Text>
+
+                    {/* Post Content */}
+                    <View className="px-4 pb-3">
+                      <Text className="text-gray-800">{post.content}</Text>
                     </View>
-                  </View>
 
-                  {/* Post Content */}
-                  <View className="px-4 pb-3">
-                    <Text className="text-gray-800">{post.content}</Text>
-                  </View>
+                    {/* Post Image */}
+                    {post.image && (
+                      <View className="h-64 bg-blue-500 items-center justify-center">
+                        <Text className="text-6xl">🏞️</Text>
+                      </View>
+                    )}
 
-                  {/* Post Image */}
-                  {post.image && (
-                    <View className="h-64 bg-blue-500 items-center justify-center">
-                      <Text className="text-6xl">🏞️</Text>
-                    </View>
-                  )}
-
-                  {/* Post Actions */}
-                  <View className="flex-row items-center justify-between px-4 py-3 border-t border-gray-100">
-                    <TouchableOpacity
-                      className="flex-row items-center"
-                      onPress={() => handleLikePost(post.id)}
-                    >
-                      <Text className="mr-2">{isLiked ? "❤️" : "🤍"}</Text>
-                      <Text
-                        className={`${isLiked ? "text-red-500 font-semibold" : "text-gray-600"}`}
+                    {/* Post Actions */}
+                    <View className="flex-row items-center justify-between px-4 py-3 border-t border-gray-100">
+                      <TouchableOpacity
+                        className="flex-row items-center"
+                        onPress={() => handleLikePost(post.$id)}
                       >
-                        {post.likes} {post.likes === 1 ? "Like" : "Likes"}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity className="flex-row items-center">
-                      <Text className="mr-2">💬</Text>
-                      <Text className="text-gray-600">
-                        {post.comments.length} Comments
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Comments */}
-                  {post.comments.length > 0 && (
-                    <View className="px-4 pb-3 border-t border-gray-100">
-                      {post.comments.map((comment) => (
-                        <View key={comment.id} className="flex-row mt-3">
-                          <View className="w-8 h-8 bg-gray-300 rounded-full items-center justify-center mr-2">
-                            <Text className="text-sm">👤</Text>
-                          </View>
-                          <View className="flex-1 bg-gray-100 rounded-lg p-2">
-                            <Text className="font-semibold text-sm text-gray-800">
-                              {comment.userName}
-                            </Text>
-                            <Text className="text-gray-700 text-sm">
-                              {comment.content}
-                            </Text>
-                            <Text className="text-gray-500 text-xs mt-1">
-                              {comment.timestamp}
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
+                        <Text className="mr-2">{isLiked ? "❤️" : "🤍"}</Text>
+                        <Text
+                          className={`${isLiked ? "text-red-500 font-semibold" : "text-gray-600"}`}
+                        >
+                          {post.likes || 0}{" "}
+                          {(post.likes || 0) === 1 ? "Like" : "Likes"}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="flex-row items-center"
+                        onPress={() =>
+                          setCommentingPostId(
+                            commentingPostId === post.$id ? null : post.$id,
+                          )
+                        }
+                      >
+                        <Text className="mr-2">💬</Text>
+                        <Text className="text-gray-600">
+                          {postComments[post.$id]?.length || 0} Comments
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                  )}
-                </View>
-              );
-            })}
 
-            {campsitePosts.length === 0 && (
+                    {/* Comments */}
+                    {postComments[post.$id] &&
+                      postComments[post.$id].length > 0 && (
+                        <View className="px-4 pb-3 border-t border-gray-100">
+                          {postComments[post.$id].map((comment) => (
+                            <View key={comment.$id} className="flex-row mt-3">
+                              <View className="w-8 h-8 bg-gray-300 rounded-full items-center justify-center mr-2">
+                                <Text className="text-sm">👤</Text>
+                              </View>
+                              <View className="flex-1 bg-gray-100 rounded-lg p-2">
+                                <Text className="font-semibold text-sm text-gray-800">
+                                  {comment.userName}
+                                </Text>
+                                <Text className="text-gray-700 text-sm">
+                                  {comment.content}
+                                </Text>
+                                <Text className="text-gray-500 text-xs mt-1">
+                                  {comment.timestamp}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                    {/* Comment Input */}
+                    {commentingPostId === post.$id && (
+                      <View className="px-4 pb-3 border-t border-gray-100">
+                        <View className="flex-row items-center mt-3">
+                          <TextInput
+                            className="flex-1 bg-gray-100 rounded-lg px-3 py-2 mr-2"
+                            placeholder="Write a comment..."
+                            value={newComment}
+                            onChangeText={setNewComment}
+                            multiline
+                          />
+                          <TouchableOpacity
+                            className="bg-orange-500 rounded-lg px-4 py-2"
+                            onPress={() => handleAddComment(post.$id)}
+                          >
+                            <Text className="text-white font-semibold">
+                              Post
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            ) : (
               <View className="items-center py-12">
                 <Text className="text-6xl mb-4">📝</Text>
                 <Text className="text-gray-600 text-center">No posts yet</Text>
@@ -334,45 +544,113 @@ export default function CampsiteDetailScreen() {
 
         {activeTab === "activities" && (
           <View className="p-4">
+            {/* Activities Section */}
             <View className="flex-row justify-between items-center mb-4">
               <Text className="text-lg font-bold text-gray-800">
                 Popular Activities
               </Text>
-              {!campsite.isPrivate && isAuthenticated && (
+              {isOwner ? (
                 <TouchableOpacity
                   className="bg-orange-500 px-3 py-2 rounded-lg"
-                  onPress={() => setShowSuggestModal(true)}
+                  onPress={() => setShowAddActivityModal(true)}
                 >
                   <Text className="text-white font-semibold text-sm">
-                    💡 Suggest
+                    ➕ Add Activity
                   </Text>
                 </TouchableOpacity>
+              ) : (
+                isAuthenticated && (
+                  <TouchableOpacity
+                    className="bg-orange-500 px-3 py-2 rounded-lg"
+                    onPress={() => setShowSuggestModal(true)}
+                  >
+                    <Text className="text-white font-semibold text-sm">
+                      💡 Suggest
+                    </Text>
+                  </TouchableOpacity>
+                )
               )}
             </View>
-            {activities.map((activity, index) => (
+            {localActivities.map((activity, index) => (
               <View
-                key={index}
+                key={activity.$id || index}
                 className="bg-white rounded-xl p-4 mb-3 flex-row items-center shadow-sm"
               >
                 <View className="w-12 h-12 bg-orange-100 rounded-full items-center justify-center mr-3">
                   <Text className="text-2xl">⛰️</Text>
                 </View>
-                <Text className="flex-1 text-gray-800 font-medium">
-                  {activity}
-                </Text>
+                <View className="flex-1">
+                  <Text className="text-gray-800 font-medium">
+                    {activity.name || activity}
+                  </Text>
+                  {activity.description && (
+                    <Text className="text-gray-600 text-sm mt-1">
+                      {activity.description}
+                    </Text>
+                  )}
+                </View>
               </View>
             ))}
-            {activities.length === 0 && (
+            {localActivities.length === 0 && (
               <View className="items-center py-12">
                 <Text className="text-6xl mb-4">🏕️</Text>
                 <Text className="text-gray-600 text-center">
                   No activities listed yet
                 </Text>
-                {!campsite.isPrivate && (
-                  <Text className="text-gray-500 text-sm text-center mt-2">
-                    Be the first to suggest one!
-                  </Text>
-                )}
+                <Text className="text-gray-500 text-sm text-center mt-2">
+                  {isOwner
+                    ? "Add the first activity!"
+                    : "Be the first to suggest one!"}
+                </Text>
+              </View>
+            )}
+
+            {/* Suggestions Section (Owner Only) */}
+            {isOwner && campsiteSuggestions.length > 0 && (
+              <View className="mt-8">
+                <Text className="text-lg font-bold text-gray-800 mb-4">
+                  Pending Suggestions ({campsiteSuggestions.length})
+                </Text>
+                {campsiteSuggestions.map((suggestion) => (
+                  <View
+                    key={suggestion.id}
+                    className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+                  >
+                    <View className="flex-row items-center justify-between mb-2">
+                      <Text className="text-sm text-gray-500">
+                        From: {suggestion.userName}
+                      </Text>
+                      <View className="bg-yellow-100 px-2 py-1 rounded-full">
+                        <Text className="text-yellow-700 text-xs font-semibold">
+                          Pending
+                        </Text>
+                      </View>
+                    </View>
+                    <View className="bg-gray-50 p-3 rounded-lg mb-3">
+                      <Text className="text-gray-900 font-medium">
+                        {suggestion.content}
+                      </Text>
+                    </View>
+                    <View className="flex-row justify-end">
+                      <TouchableOpacity
+                        className="bg-green-500 px-4 py-2 rounded-lg mr-2"
+                        onPress={() => handleApproveSuggestion(suggestion)}
+                      >
+                        <Text className="text-white text-sm font-semibold">
+                          ✓ Approve
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        className="bg-red-500 px-4 py-2 rounded-lg"
+                        onPress={() => handleRejectSuggestion(suggestion)}
+                      >
+                        <Text className="text-white text-sm font-semibold">
+                          ✗ Reject
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
               </View>
             )}
           </View>
@@ -495,7 +773,7 @@ export default function CampsiteDetailScreen() {
         </View>
       </Modal>
 
-      {/* Suggest Activity Modal (for public campsites) */}
+      {/* Suggest Activity Modal (for non-owners) */}
       <Modal
         visible={showSuggestModal}
         animationType="slide"
@@ -531,6 +809,47 @@ export default function CampsiteDetailScreen() {
             >
               <Text className="text-white text-center font-bold text-lg">
                 Send Suggestion
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Activity Modal (for owners) */}
+      <Modal
+        visible={showAddActivityModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAddActivityModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6 h-[60%]">
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-2xl font-bold">Add Activity</Text>
+              <TouchableOpacity onPress={() => setShowAddActivityModal(false)}>
+                <Text className="text-2xl text-gray-400">✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text className="text-gray-600 mb-4">
+              Add a new activity that campers can enjoy at your campsite.
+            </Text>
+
+            <TextInput
+              className="bg-gray-100 rounded-lg px-4 py-3 h-24 text-gray-800"
+              placeholder="e.g., Rock climbing, Bird watching, Fishing"
+              multiline
+              value={newActivity}
+              onChangeText={setNewActivity}
+              autoFocus
+            />
+
+            <TouchableOpacity
+              className="bg-orange-500 rounded-lg py-4 mt-4"
+              onPress={handleAddActivity}
+            >
+              <Text className="text-white text-center font-bold text-lg">
+                Add Activity
               </Text>
             </TouchableOpacity>
           </View>

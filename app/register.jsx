@@ -1,7 +1,9 @@
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContextAppwrite";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
+    ActivityIndicator,
+    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -16,21 +18,53 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { register } = useAuth();
 
-  const handleRegister = () => {
-    if (name && email && password && password === confirmPassword) {
-      // Create new user object
-      const newUser = {
-        id: Date.now(), // Simple ID generation
-        name,
-        email,
-        avatar: `https://i.pravatar.cc/150?u=${email}`,
-        bio: "Nature lover 🏕️",
-      };
-      register(newUser);
-      router.replace("/(tabs)");
+  const handleRegister = async () => {
+    // Validation
+    if (!name.trim()) {
+      Alert.alert("Missing Name", "Please enter your full name.");
+      return;
+    }
+    if (!email.trim()) {
+      Alert.alert("Missing Email", "Please enter your email address.");
+      return;
+    }
+    if (!password.trim()) {
+      Alert.alert("Missing Password", "Please enter a password.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert("Password Mismatch", "Passwords do not match.");
+      return;
+    }
+    if (password.length < 8) {
+      Alert.alert("Weak Password", "Password must be at least 8 characters.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await register(email, password, name);
+      if (result.success) {
+        router.replace("/(tabs)");
+      } else {
+        Alert.alert(
+          "Registration Failed",
+          result.error || "Registration failed",
+        );
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      Alert.alert(
+        "Error",
+        "An error occurred during registration. Please try again.",
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -109,9 +143,10 @@ export default function RegisterScreen() {
             )}
 
             <TouchableOpacity
-              className="bg-white rounded-lg py-4 mt-6"
+              className={`rounded-lg py-4 mt-6 ${isLoading || !name || !email || !password || !confirmPassword || password !== confirmPassword ? "bg-white/70" : "bg-white"}`}
               onPress={handleRegister}
               disabled={
+                isLoading ||
                 !name ||
                 !email ||
                 !password ||
@@ -119,9 +154,13 @@ export default function RegisterScreen() {
                 password !== confirmPassword
               }
             >
-              <Text className="text-orange-600 text-center font-bold text-lg">
-                Create Account
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator color="#ea580c" />
+              ) : (
+                <Text className="text-orange-600 text-center font-bold text-lg">
+                  Create Account
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
 
