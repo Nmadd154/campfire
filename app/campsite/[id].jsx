@@ -230,6 +230,7 @@ export default function CampsiteDetailScreen() {
         const activity = await activityService.addActivity({
           campsiteId: id,
           name: newActivity,
+          content: newActivity,
           description: "",
           addedBy: user.id,
         });
@@ -357,16 +358,6 @@ export default function CampsiteDetailScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          className={`flex-1 py-3 ${activeTab === "photos" ? "border-b-2 border-orange-500" : ""}`}
-          onPress={() => setActiveTab("photos")}
-        >
-          <Text
-            className={`text-center font-semibold ${activeTab === "photos" ? "text-orange-500" : "text-gray-600"}`}
-          >
-            Photos
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
           className={`flex-1 py-3 ${activeTab === "activities" ? "border-b-2 border-orange-500" : ""}`}
           onPress={() => setActiveTab("activities")}
         >
@@ -474,7 +465,7 @@ export default function CampsiteDetailScreen() {
                                   {comment.content}
                                 </Text>
                                 <Text className="text-gray-500 text-xs mt-1">
-                                  {comment.timestamp}
+                                  {comment.timeStamp}
                                 </Text>
                               </View>
                             </View>
@@ -519,29 +510,6 @@ export default function CampsiteDetailScreen() {
           </View>
         )}
 
-        {activeTab === "photos" && (
-          <View className="p-4">
-            <View className="flex-row flex-wrap">
-              {campsite.photos.map((photo, index) => (
-                <View
-                  key={index}
-                  className="w-[48%] mr-[4%] mb-4 h-32 bg-blue-500 rounded-xl items-center justify-center"
-                >
-                  <Text className="text-4xl">🏞️</Text>
-                </View>
-              ))}
-              {[1, 2, 3, 4].map((item) => (
-                <View
-                  key={item}
-                  className="w-[48%] mr-[4%] mb-4 h-32 bg-gray-200 rounded-xl items-center justify-center"
-                >
-                  <Text className="text-4xl">📷</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
         {activeTab === "activities" && (
           <View className="p-4">
             {/* Activities Section */}
@@ -581,13 +549,8 @@ export default function CampsiteDetailScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-gray-800 font-medium">
-                    {activity.name || activity}
+                    {activity.name || activity.content || activity}
                   </Text>
-                  {activity.description && (
-                    <Text className="text-gray-600 text-sm mt-1">
-                      {activity.description}
-                    </Text>
-                  )}
                 </View>
               </View>
             ))}

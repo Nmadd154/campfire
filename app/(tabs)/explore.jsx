@@ -1,41 +1,101 @@
 import { useAuth } from "@/context/AuthContextAppwrite";
-import { posts, suggestions, trips } from "@/data/mockData";
-import { campsiteService } from "@/services/appwriteService";
+import { posts, suggestions } from "@/data/mockData";
+import { campsiteService, tripService } from "@/services/appwriteService";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("trips");
   const [userCampsites, setUserCampsites] = useState([]);
+  const [userTrips, setUserTrips] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showCreateTripModal, setShowCreateTripModal] = useState(false);
+  const [newTripName, setNewTripName] = useState("");
+  const [newTripStartDate, setNewTripStartDate] = useState("");
+  const [newTripEndDate, setNewTripEndDate] = useState("");
 
-  // Fetch user's campsites from Appwrite
+  // Fetch user's campsites and trips from Appwrite
   useEffect(() => {
     if (user?.id) {
-      loadUserCampsites();
+      loadUserData();
     }
   }, [user?.id]);
 
-  const loadUserCampsites = async () => {
+  const loadUserData = async () => {
     try {
       setIsLoading(true);
+      // Load campsites
       const allCampsites = await campsiteService.getAllCampsites();
       const myCampsites = allCampsites.filter(
         (campsite) => campsite.addedBy === user.id,
       );
       setUserCampsites(myCampsites);
+
+      // Load trips
+      const myTrips = await tripService.getUserTrips(user.id);
+      setUserTrips(myTrips);
     } catch (error) {
-      console.error("Error loading user campsites:", error);
+      console.error("Error loading user data:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleCreateTrip = async () => {
+    if (!newTripName.trim() || !newTripStartDate || !newTripEndDate) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    try {
+      console.log("Creating trip with data:", {
+        name: newTripName,
+        startDate: newTripStartDate,
+        endDate: newTripEndDate,
+        organizer: user.id,
+      });
+
+      const trip = await tripService.createTrip({
+        name: newTripName,
+        campsiteName: "",
+        campsiteIds: [],
+        startDate: newTripStartDate,
+        endDate: newTripEndDate,
+        status: "planned",
+        organizer: user.id,
+        attendees: [user.id],
+      });
+
+      console.log("Trip created successfully:", trip);
+
+      setUserTrips([trip, ...userTrips]);
+      setNewTripName("");
+      setNewTripStartDate("");
+      setNewTripEndDate("");
+      setShowCreateTripModal(false);
+      Alert.alert("Success", "Trip created!");
+    } catch (error) {
+      console.error("Error creating trip:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
+      Alert.alert(
+        "Error",
+        `Failed to create trip: ${error.message || "Unknown error"}`,
+      );
+    }
+  };
+
   const userPosts = posts.filter((post) => post.userId === user?.id);
-  const userTrips = trips.filter((trip) => trip.attendees.includes(user?.id));
   const pastTrips = userTrips.filter((trip) => trip.status === "past");
   const plannedTrips = userTrips.filter((trip) => trip.status === "planned");
   const userSuggestions = suggestions.filter(
@@ -151,6 +211,16 @@ export default function ProfileScreen() {
       <ScrollView className="flex-1">
         {activeTab === "trips" && (
           <View className="p-4">
+            {/* Create Trip Button */}
+            <TouchableOpacity
+              className="bg-orange-500 rounded-lg py-3 mb-4"
+              onPress={() => setShowCreateTripModal(true)}
+            >
+              <Text className="text-white text-center font-semibold">
+                ➕ Plan a New Trip
+              </Text>
+            </TouchableOpacity>
+
             {/* Planned Trips */}
             {plannedTrips.length > 0 && (
               <View className="mb-6">
@@ -159,18 +229,15 @@ export default function ProfileScreen() {
                 </Text>
                 {plannedTrips.map((trip) => (
                   <TouchableOpacity
-                    key={trip.id}
+                    key={trip.$id}
                     className="bg-white rounded-xl p-4 mb-3 shadow-sm"
-                    onPress={() => router.push(`/trip/${trip.id}`)}
+                    onPress={() => router.push(`/trip/${trip.$id}`)}
                   >
                     <View className="flex-row items-center mb-2">
                       <Text className="text-3xl mr-3">🏕️</Text>
                       <View className="flex-1">
                         <Text className="text-lg font-bold text-gray-800">
                           {trip.name}
-                        </Text>
-                        <Text className="text-gray-600 text-sm">
-                          {trip.campsiteName}
                         </Text>
                       </View>
                       <View className="bg-green-100 px-3 py-1 rounded-full">
@@ -183,7 +250,7 @@ export default function ProfileScreen() {
                       📅 {trip.startDate} - {trip.endDate}
                     </Text>
                     <Text className="text-gray-600 text-sm mt-1">
-                      👥 {trip.attendees.length} attendees
+                      👥 {trip.attendees?.length || 0} attendees
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -198,9 +265,9 @@ export default function ProfileScreen() {
                 </Text>
                 {pastTrips.map((trip) => (
                   <TouchableOpacity
-                    key={trip.id}
+                    key={trip.$id}
                     className="bg-white rounded-xl p-4 mb-3 shadow-sm"
-                    onPress={() => router.push(`/trip/${trip.id}`)}
+                    onPress={() => router.push(`/trip/${trip.$id}`)}
                   >
                     <View className="flex-row items-center mb-2">
                       <Text className="text-3xl mr-3">🏕️</Text>
@@ -208,13 +275,13 @@ export default function ProfileScreen() {
                         <Text className="text-lg font-bold text-gray-800">
                           {trip.name}
                         </Text>
-                        <Text className="text-gray-600 text-sm">
-                          {trip.campsiteName}
-                        </Text>
                       </View>
                     </View>
                     <Text className="text-gray-600 text-sm">
                       📅 {trip.startDate} - {trip.endDate}
+                    </Text>
+                    <Text className="text-gray-600 text-sm mt-1">
+                      👥 {trip.attendees?.length || 0} attendees
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -264,10 +331,10 @@ export default function ProfileScreen() {
                 </View>
                 <View className="flex-row items-center mt-2">
                   <Text className="text-gray-500 text-sm mr-4">
-                    📍 {campsite.amenities.length} amenities
+                    📍 {campsite.amenities?.length || 0} amenities
                   </Text>
                   <Text className="text-gray-500 text-sm">
-                    📸 {campsite.photos.length} photos
+                    📸 {campsite.photos?.length || 0} photos
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -292,76 +359,71 @@ export default function ProfileScreen() {
             <Text className="text-lg font-bold text-gray-800 mb-3">
               Pending Requests
             </Text>
-            {userSuggestions.map((suggestion) => {
-              const campsite = campsites.find(
-                (c) => c.id === suggestion.campsiteId,
-              );
-              return (
-                <View
-                  key={suggestion.id}
-                  className="bg-white rounded-xl p-4 mb-3 shadow-sm"
-                >
-                  <View className="flex-row items-center justify-between mb-2">
-                    <View className="flex-1">
-                      <Text className="text-sm text-gray-500 mb-1">
-                        From: {suggestion.userName}
-                      </Text>
-                      <Text className="text-base font-semibold text-gray-800">
-                        {campsite?.name}
-                      </Text>
-                    </View>
-                    <View className="bg-yellow-100 px-3 py-1 rounded-full">
-                      <Text className="text-yellow-700 text-xs font-semibold">
-                        Pending
-                      </Text>
-                    </View>
-                  </View>
-                  <View className="bg-gray-50 p-3 rounded-lg mb-3">
-                    <Text className="text-gray-700 text-sm mb-1">
-                      {suggestion.type === "activity"
-                        ? "Suggested Activity:"
-                        : "Suggested Change:"}
+            {userSuggestions.map((suggestion) => (
+              <View
+                key={suggestion.id}
+                className="bg-white rounded-xl p-4 mb-3 shadow-sm"
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <View className="flex-1">
+                    <Text className="text-sm text-gray-500 mb-1">
+                      From: {suggestion.userName}
                     </Text>
-                    <Text className="text-gray-900 font-medium">
-                      {suggestion.content}
+                    <Text className="text-base font-semibold text-gray-800">
+                      Campsite Request
                     </Text>
                   </View>
-                  <View className="flex-row justify-between items-center">
-                    <Text className="text-gray-500 text-xs">
-                      Submitted: {suggestion.submittedAt}
+                  <View className="bg-yellow-100 px-3 py-1 rounded-full">
+                    <Text className="text-yellow-700 text-xs font-semibold">
+                      Pending
                     </Text>
-                    <View className="flex-row">
-                      <TouchableOpacity
-                        className="bg-green-500 px-4 py-2 rounded-lg mr-2"
-                        onPress={() => {
-                          Alert.alert(
-                            "Approved",
-                            `You approved the suggestion: "${suggestion.content}"`,
-                          );
-                        }}
-                      >
-                        <Text className="text-white text-sm font-semibold">
-                          ✓ Approve
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        className="bg-red-500 px-4 py-2 rounded-lg"
-                        onPress={() => {
-                          Alert.alert(
-                            "Rejected",
-                            "You rejected this suggestion.",
-                          );
-                        }}
-                      >
-                        <Text className="text-white text-sm font-semibold">
-                          ✗ Reject
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
                   </View>
                 </View>
-              );
-            })}
+                <View className="bg-gray-50 p-3 rounded-lg mb-3">
+                  <Text className="text-gray-700 text-sm mb-1">
+                    {suggestion.type === "activity"
+                      ? "Suggested Activity:"
+                      : "Suggested Change:"}
+                  </Text>
+                  <Text className="text-gray-900 font-medium">
+                    {suggestion.content}
+                  </Text>
+                </View>
+                <View className="flex-row justify-between items-center">
+                  <Text className="text-gray-500 text-xs">
+                    Submitted: {suggestion.submittedAt}
+                  </Text>
+                  <View className="flex-row">
+                    <TouchableOpacity
+                      className="bg-green-500 px-4 py-2 rounded-lg mr-2"
+                      onPress={() => {
+                        Alert.alert(
+                          "Approved",
+                          `You approved the suggestion: "${suggestion.content}"`,
+                        );
+                      }}
+                    >
+                      <Text className="text-white text-sm font-semibold">
+                        ✓ Approve
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      className="bg-red-500 px-4 py-2 rounded-lg"
+                      onPress={() => {
+                        Alert.alert(
+                          "Rejected",
+                          "You rejected this suggestion.",
+                        );
+                      }}
+                    >
+                      <Text className="text-white text-sm font-semibold">
+                        ✗ Reject
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))}
 
             {userSuggestions.length === 0 && (
               <View className="items-center py-12">
@@ -377,6 +439,55 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Create Trip Modal */}
+      <Modal
+        visible={showCreateTripModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCreateTripModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <View className="bg-white rounded-t-3xl p-6">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-xl font-bold text-gray-800">
+                Plan a New Trip
+              </Text>
+              <TouchableOpacity onPress={() => setShowCreateTripModal(false)}>
+                <Text className="text-2xl text-gray-600">×</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              className="bg-gray-100 rounded-lg px-4 py-3 mb-3"
+              placeholder="Trip name (e.g., Summer Adventure 2026)"
+              value={newTripName}
+              onChangeText={setNewTripName}
+            />
+            <TextInput
+              className="bg-gray-100 rounded-lg px-4 py-3 mb-3"
+              placeholder="Start date (e.g., 2026-07-15)"
+              value={newTripStartDate}
+              onChangeText={setNewTripStartDate}
+            />
+            <TextInput
+              className="bg-gray-100 rounded-lg px-4 py-3 mb-4"
+              placeholder="End date (e.g., 2026-07-18)"
+              value={newTripEndDate}
+              onChangeText={setNewTripEndDate}
+            />
+
+            <TouchableOpacity
+              className="bg-orange-500 rounded-lg py-3"
+              onPress={handleCreateTrip}
+            >
+              <Text className="text-white text-center font-semibold">
+                Create Trip
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

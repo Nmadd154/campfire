@@ -292,7 +292,7 @@ export const commentService = {
           userId: commentData.userId,
           userName: commentData.userName,
           content: commentData.content,
-          timestamp: new Date().toISOString(),
+          timeStamp: new Date().toISOString(),
         },
       );
     } catch (error) {
@@ -428,6 +428,7 @@ export const activityService = {
         {
           campsiteId: activityData.campsiteId,
           name: activityData.name,
+          content: activityData.content,
           description: activityData.description || "",
           addedBy: activityData.addedBy,
         },
@@ -448,6 +449,144 @@ export const activityService = {
       );
     } catch (error) {
       console.error("Delete activity error:", error);
+      throw error;
+    }
+  },
+};
+
+// ============================================
+// TRIP SERVICES
+// ============================================
+
+export const tripService = {
+  // Get all trips for a user (as organizer or attendee)
+  async getUserTrips(userId) {
+    try {
+      // Get trips where user is organizer
+      const organizerTrips = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.TRIPS,
+        [Query.equal("organizer", userId)],
+      );
+
+      // Get trips where user is attendee
+      const attendeeTrips = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.TRIPS,
+        [Query.search("attendees", userId)],
+      );
+
+      // Combine and deduplicate
+      const allTrips = [
+        ...organizerTrips.documents,
+        ...attendeeTrips.documents,
+      ];
+      const uniqueTrips = Array.from(
+        new Map(allTrips.map((trip) => [trip.$id, trip])).values(),
+      );
+
+      return uniqueTrips;
+    } catch (error) {
+      console.error("Get user trips error:", error);
+      throw error;
+    }
+  },
+
+  // Get trip by ID
+  async getTrip(tripId) {
+    try {
+      return await databases.getDocument(
+        DATABASE_ID,
+        COLLECTIONS.TRIPS,
+        tripId,
+      );
+    } catch (error) {
+      console.error("Get trip error:", error);
+      throw error;
+    }
+  },
+
+  // Create trip
+  async createTrip(tripData) {
+    try {
+      return await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.TRIPS,
+        ID.unique(),
+        {
+          name: tripData.name,
+          campsiteName: tripData.campsiteName || "",
+          campsiteIds: tripData.campsiteIds || [],
+          startDate: tripData.startDate,
+          endDate: tripData.endDate,
+          status: tripData.status || "planned",
+          organizer: tripData.organizer,
+          attendees: tripData.attendees || [],
+        },
+      );
+    } catch (error) {
+      console.error("Create trip error:", error);
+      throw error;
+    }
+  },
+
+  // Update trip
+  async updateTrip(tripId, tripData) {
+    try {
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTIONS.TRIPS,
+        tripId,
+        tripData,
+      );
+    } catch (error) {
+      console.error("Update trip error:", error);
+      throw error;
+    }
+  },
+
+  // Delete trip
+  async deleteTrip(tripId) {
+    try {
+      await databases.deleteDocument(DATABASE_ID, COLLECTIONS.TRIPS, tripId);
+    } catch (error) {
+      console.error("Delete trip error:", error);
+      throw error;
+    }
+  },
+
+  // Add attendee to trip
+  async addAttendee(tripId, userId, currentAttendees) {
+    try {
+      const updatedAttendees = [...currentAttendees, userId];
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTIONS.TRIPS,
+        tripId,
+        {
+          attendees: updatedAttendees,
+        },
+      );
+    } catch (error) {
+      console.error("Add attendee error:", error);
+      throw error;
+    }
+  },
+
+  // Remove attendee from trip
+  async removeAttendee(tripId, userId, currentAttendees) {
+    try {
+      const updatedAttendees = currentAttendees.filter((id) => id !== userId);
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTIONS.TRIPS,
+        tripId,
+        {
+          attendees: updatedAttendees,
+        },
+      );
+    } catch (error) {
+      console.error("Remove attendee error:", error);
       throw error;
     }
   },
