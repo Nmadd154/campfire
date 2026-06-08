@@ -22,7 +22,7 @@ export const COLLECTIONS = {
   COMMENTS: "comments",
   TRIPS: "trips",
   ACTIVITIES: "activities",
-  SUGGESTIONS: "suggestions",
+  CHECKLISTS: "checklists",
 };
 
 export default client;

@@ -1,5 +1,4 @@
 import { useAuth } from "@/context/AuthContextAppwrite";
-import { posts, suggestions } from "@/data/mockData";
 import { campsiteService, tripService } from "@/services/appwriteService";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -59,13 +58,6 @@ export default function ProfileScreen() {
     }
 
     try {
-      console.log("Creating trip with data:", {
-        name: newTripName,
-        startDate: newTripStartDate,
-        endDate: newTripEndDate,
-        organizer: user.id,
-      });
-
       const trip = await tripService.createTrip({
         name: newTripName,
         campsiteName: "",
@@ -76,8 +68,6 @@ export default function ProfileScreen() {
         organizer: user.id,
         attendees: [user.id],
       });
-
-      console.log("Trip created successfully:", trip);
 
       setUserTrips([trip, ...userTrips]);
       setNewTripName("");
@@ -95,12 +85,8 @@ export default function ProfileScreen() {
     }
   };
 
-  const userPosts = posts.filter((post) => post.userId === user?.id);
   const pastTrips = userTrips.filter((trip) => trip.status === "past");
   const plannedTrips = userTrips.filter((trip) => trip.status === "planned");
-  const userSuggestions = suggestions.filter(
-    (suggestion) => suggestion.campsiteOwnerId === user?.id,
-  );
 
   if (!isAuthenticated || !user) {
     return (
@@ -164,12 +150,6 @@ export default function ProfileScreen() {
             </Text>
             <Text className="text-white opacity-80 text-sm">Campsites</Text>
           </View>
-          <View className="items-center">
-            <Text className="text-white text-2xl font-bold">
-              {userSuggestions.length}
-            </Text>
-            <Text className="text-white opacity-80 text-sm">Requests</Text>
-          </View>
         </View>
       </View>
 
@@ -193,16 +173,6 @@ export default function ProfileScreen() {
             className={`text-center font-semibold ${activeTab === "campsites" ? "text-orange-500" : "text-gray-600"}`}
           >
             Campsites
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          className={`flex-1 py-4 ${activeTab === "suggestions" ? "border-b-2 border-orange-500" : ""}`}
-          onPress={() => setActiveTab("suggestions")}
-        >
-          <Text
-            className={`text-center font-semibold ${activeTab === "suggestions" ? "text-orange-500" : "text-gray-600"}`}
-          >
-            Requests
           </Text>
         </TouchableOpacity>
       </View>
@@ -348,91 +318,6 @@ export default function ProfileScreen() {
                 </Text>
                 <Text className="text-gray-500 text-sm text-center mt-2">
                   Be the first to add a campsite!
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {activeTab === "suggestions" && (
-          <View className="p-4">
-            <Text className="text-lg font-bold text-gray-800 mb-3">
-              Pending Requests
-            </Text>
-            {userSuggestions.map((suggestion) => (
-              <View
-                key={suggestion.id}
-                className="bg-white rounded-xl p-4 mb-3 shadow-sm"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <View className="flex-1">
-                    <Text className="text-sm text-gray-500 mb-1">
-                      From: {suggestion.userName}
-                    </Text>
-                    <Text className="text-base font-semibold text-gray-800">
-                      Campsite Request
-                    </Text>
-                  </View>
-                  <View className="bg-yellow-100 px-3 py-1 rounded-full">
-                    <Text className="text-yellow-700 text-xs font-semibold">
-                      Pending
-                    </Text>
-                  </View>
-                </View>
-                <View className="bg-gray-50 p-3 rounded-lg mb-3">
-                  <Text className="text-gray-700 text-sm mb-1">
-                    {suggestion.type === "activity"
-                      ? "Suggested Activity:"
-                      : "Suggested Change:"}
-                  </Text>
-                  <Text className="text-gray-900 font-medium">
-                    {suggestion.content}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between items-center">
-                  <Text className="text-gray-500 text-xs">
-                    Submitted: {suggestion.submittedAt}
-                  </Text>
-                  <View className="flex-row">
-                    <TouchableOpacity
-                      className="bg-green-500 px-4 py-2 rounded-lg mr-2"
-                      onPress={() => {
-                        Alert.alert(
-                          "Approved",
-                          `You approved the suggestion: "${suggestion.content}"`,
-                        );
-                      }}
-                    >
-                      <Text className="text-white text-sm font-semibold">
-                        ✓ Approve
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      className="bg-red-500 px-4 py-2 rounded-lg"
-                      onPress={() => {
-                        Alert.alert(
-                          "Rejected",
-                          "You rejected this suggestion.",
-                        );
-                      }}
-                    >
-                      <Text className="text-white text-sm font-semibold">
-                        ✗ Reject
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            ))}
-
-            {userSuggestions.length === 0 && (
-              <View className="items-center py-12">
-                <Text className="text-6xl mb-4">📬</Text>
-                <Text className="text-gray-600 text-center">
-                  No pending requests
-                </Text>
-                <Text className="text-gray-500 text-sm text-center mt-2">
-                  Suggestions from other users will appear here
                 </Text>
               </View>
             )}

@@ -1,13 +1,15 @@
 import { useAuth } from "@/context/AuthContextAppwrite";
-import { tripService } from "@/services/appwriteService";
+import { checklistService, tripService } from "@/services/appwriteService";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 export default function TripDetailScreen() {
@@ -15,16 +17,20 @@ export default function TripDetailScreen() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
-  const [showPostModal, setShowPostModal] = useState(false);
-  const [newPost, setNewPost] = useState("");
   const [trip, setTrip] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [checklistItems, setChecklistItems] = useState([]);
+  const [newItemText, setNewItemText] = useState("");
+  const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadTrip();
+      if (user) {
+        loadChecklist();
+      }
     }
-  }, [id]);
+  }, [id, user]);
 
   const loadTrip = async () => {
     try {
@@ -35,6 +41,62 @@ export default function TripDetailScreen() {
       console.error("Error loading trip:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadChecklist = async () => {
+    if (!user) return;
+    try {
+      setIsLoadingChecklist(true);
+      const items = await checklistService.getTripChecklists(user.id, id);
+      setChecklistItems(items);
+    } catch (error) {
+      console.error("Error loading checklist:", error);
+    } finally {
+      setIsLoadingChecklist(false);
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!newItemText.trim() || !user) return;
+    try {
+      const newItem = await checklistService.createChecklistItem({
+        userId: user.id,
+        tripId: id,
+        text: newItemText.trim(),
+        completed: false,
+      });
+      setChecklistItems([...checklistItems, newItem]);
+      setNewItemText("");
+    } catch (error) {
+      console.error("Error adding item:", error);
+      Alert.alert("Error", "Failed to add checklist item");
+    }
+  };
+
+  const handleToggleItem = async (item) => {
+    try {
+      const updated = await checklistService.updateChecklistItem(item.$id, {
+        completed: !item.completed,
+      });
+      setChecklistItems(
+        checklistItems.map((i) =>
+          i.$id === item.$id ? { ...i, completed: !i.completed } : i,
+        ),
+      );
+    } catch (error) {
+      console.error("Error toggling item:", error);
+      Alert.alert("Error", "Failed to update item");
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    try {
+      await checklistService.deleteChecklistItem(itemId);
+      setChecklistItems(checklistItems.filter((i) => i.$id !== itemId));
+    } catch (error) {
+      console.error("Error deleting item:", error);
+      Alert.alert("Error", "Failed to delete item");
     }
   };
 
@@ -107,17 +169,7 @@ export default function TripDetailScreen() {
           <Text
             className={`text-center font-semibold ${activeTab === "checklists" ? "text-orange-500" : "text-gray-600"}`}
           >
-            Checklists
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          className={`flex-1 py-3 ${activeTab === "posts" ? "border-b-2 border-orange-500" : ""}`}
-          onPress={() => setActiveTab("posts")}
-        >
-          <Text
-            className={`text-center font-semibold ${activeTab === "posts" ? "text-orange-500" : "text-gray-600"}`}
-          >
-            Posts
+            My Checklist
           </Text>
         </TouchableOpacity>
       </View>
@@ -177,45 +229,89 @@ export default function TripDetailScreen() {
                 </View>
               </View>
             </View>
-
-            {/* Coming Soon Message */}
-            <View className="bg-white rounded-xl p-6 shadow-sm items-center">
-              <Text className="text-4xl mb-3">🔨</Text>
-              <Text className="text-gray-800 font-semibold text-center mb-2">
-                More Features Coming Soon
-              </Text>
-              <Text className="text-gray-600 text-sm text-center">
-                Checklists, group chat, and more trip planning tools are on the
-                way!
-              </Text>
-            </View>
           </View>
         )}
 
         {activeTab === "checklists" && (
           <View className="p-4">
-            <View className="bg-white rounded-xl p-6 shadow-sm items-center">
-              <Text className="text-4xl mb-3">📝</Text>
-              <Text className="text-gray-800 font-semibold text-center mb-2">
-                Checklists Coming Soon
+            <View className="bg-white rounded-xl p-4 shadow-sm mb-4">
+              <Text className="text-lg font-bold text-gray-800 mb-3">
+                📝 My Personal Checklist
               </Text>
-              <Text className="text-gray-600 text-sm text-center">
-                Shared and personal checklists will be available soon!
+              <Text className="text-gray-600 text-sm mb-4">
+                This checklist is private and only visible to you.
               </Text>
-            </View>
-          </View>
-        )}
 
-        {activeTab === "posts" && (
-          <View className="p-4">
-            <View className="bg-white rounded-xl p-6 shadow-sm items-center">
-              <Text className="text-4xl mb-3">💬</Text>
-              <Text className="text-gray-800 font-semibold text-center mb-2">
-                Trip Chat Coming Soon
-              </Text>
-              <Text className="text-gray-600 text-sm text-center">
-                Private group messaging for your trip will be available soon!
-              </Text>
+              {/* Add Item Input */}
+              <View className="flex-row mb-4">
+                <TextInput
+                  className="flex-1 bg-gray-50 rounded-lg px-4 py-3 mr-2"
+                  placeholder="Add an item..."
+                  value={newItemText}
+                  onChangeText={setNewItemText}
+                  onSubmitEditing={handleAddItem}
+                />
+                <TouchableOpacity
+                  className="bg-orange-500 rounded-lg px-4 py-3 justify-center"
+                  onPress={handleAddItem}
+                >
+                  <Text className="text-white font-semibold">Add</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Checklist Items */}
+              {isLoadingChecklist ? (
+                <ActivityIndicator size="small" color="#f97316" />
+              ) : checklistItems.length === 0 ? (
+                <View className="items-center py-8">
+                  <Text className="text-gray-400 text-center">
+                    No items yet. Add your first item above!
+                  </Text>
+                </View>
+              ) : (
+                <View>
+                  {checklistItems.map((item) => (
+                    <View
+                      key={item.$id}
+                      className="flex-row items-center py-3 border-b border-gray-100"
+                    >
+                      <TouchableOpacity
+                        className="mr-3"
+                        onPress={() => handleToggleItem(item)}
+                      >
+                        <View
+                          className={`w-6 h-6 rounded border-2 items-center justify-center ${
+                            item.completed
+                              ? "bg-orange-500 border-orange-500"
+                              : "border-gray-300"
+                          }`}
+                        >
+                          {item.completed && (
+                            <Text className="text-white text-xs font-bold">
+                              ✓
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                      <Text
+                        className={`flex-1 ${
+                          item.completed
+                            ? "text-gray-400 line-through"
+                            : "text-gray-800"
+                        }`}
+                      >
+                        {item.text}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteItem(item.$id)}
+                        className="ml-2 p-2"
+                      >
+                        <Text className="text-red-500 text-lg">🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </View>
         )}

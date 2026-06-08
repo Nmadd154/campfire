@@ -1,3 +1,4 @@
+import { useAuth } from "@/context/AuthContextAppwrite";
 import { campsiteService } from "@/services/appwriteService";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
@@ -15,6 +16,7 @@ import MapView, { Marker } from "react-native-maps";
 
 export default function MapScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
@@ -30,13 +32,17 @@ export default function MapScreen() {
   // Load campsites data
   useEffect(() => {
     loadCampsites();
-  }, []);
+  }, [user]);
 
   const loadCampsites = async () => {
     try {
       setIsLoading(true);
       const data = await campsiteService.getAllCampsites();
-      setCampsitesData(data);
+      // Filter out private campsites that don't belong to the current user
+      const visibleCampsites = data.filter(
+        (campsite) => !campsite.isPrivate || campsite.addedBy === user?.id,
+      );
+      setCampsitesData(visibleCampsites);
     } catch (error) {
       console.error("Error loading campsites:", error);
       Alert.alert("Error", "Failed to load campsites");
@@ -49,7 +55,6 @@ export default function MapScreen() {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        console.log("Location permission denied");
         return;
       }
 
@@ -69,7 +74,7 @@ export default function MapScreen() {
           longitudeDelta: 0.5,
         });
       } catch (error) {
-        console.log("Error getting location:", error);
+        // Silently handle location errors
       }
     })();
   }, []);

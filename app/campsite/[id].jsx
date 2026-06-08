@@ -1,5 +1,4 @@
 import { useAuth } from "@/context/AuthContextAppwrite";
-import { suggestions } from "@/data/mockData";
 import {
   activityService,
   campsiteService,
@@ -26,7 +25,6 @@ export default function CampsiteDetailScreen() {
   const [activeTab, setActiveTab] = useState("posts");
   const [showPostModal, setShowPostModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showSuggestModal, setShowSuggestModal] = useState(false);
   const [showAddActivityModal, setShowAddActivityModal] = useState(false);
   const [newPost, setNewPost] = useState("");
   const [localPosts, setLocalPosts] = useState([]);
@@ -70,7 +68,6 @@ export default function CampsiteDetailScreen() {
         }
         setPostComments(commentsMap);
       } catch (postError) {
-        console.log("Posts not available yet:", postError);
         setLocalPosts([]);
       }
 
@@ -79,7 +76,6 @@ export default function CampsiteDetailScreen() {
         const activitiesData = await activityService.getCampsiteActivities(id);
         setLocalActivities(activitiesData);
       } catch (actError) {
-        console.log("Activities not available yet:", actError);
         setLocalActivities([]);
       }
     } catch (error) {
@@ -92,10 +88,6 @@ export default function CampsiteDetailScreen() {
 
   // Posts are already filtered by campsite ID from Appwrite
   const campsitePosts = localPosts;
-  const campsiteSuggestions = suggestions.filter(
-    (suggestion) =>
-      suggestion.campsiteId === id && suggestion.status === "pending",
-  );
 
   if (isLoading) {
     return (
@@ -117,10 +109,23 @@ export default function CampsiteDetailScreen() {
   const isOwner = isAuthenticated && user && campsite.addedBy === user.id;
   const canEdit = isOwner; // Users can edit all their created campsites
 
-  if (!campsite) {
+  // Check if this is a private campsite that the user doesn't own
+  if (campsite.isPrivate && !isOwner) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-600">Campsite not found</Text>
+      <View className="flex-1 items-center justify-center bg-gray-50">
+        <Text className="text-6xl mb-4">🔒</Text>
+        <Text className="text-gray-800 text-xl font-bold mb-2">
+          Private Campsite
+        </Text>
+        <Text className="text-gray-600 text-center px-8">
+          This campsite is private and only visible to its creator.
+        </Text>
+        <TouchableOpacity
+          className="bg-orange-500 px-6 py-3 rounded-lg mt-6"
+          onPress={() => router.back()}
+        >
+          <Text className="text-white font-semibold">Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -204,22 +209,6 @@ export default function CampsiteDetailScreen() {
     }
   };
 
-  const handleSuggestActivity = () => {
-    if (!isAuthenticated || !user) {
-      Alert.alert("Login Required", "Please log in to suggest activities.");
-      return;
-    }
-    if (newActivity.trim()) {
-      // In a real app, this would send suggestion to database
-      Alert.alert(
-        "Suggestion Sent",
-        `Your suggestion "${newActivity}" has been sent to the campsite owner for approval.`,
-      );
-      setNewActivity("");
-      setShowSuggestModal(false);
-    }
-  };
-
   const handleAddActivity = async () => {
     if (!isAuthenticated || !user) {
       Alert.alert("Login Required", "Please log in to add activities.");
@@ -273,17 +262,6 @@ export default function CampsiteDetailScreen() {
         Alert.alert("Error", "Failed to add comment. Please try again.");
       }
     }
-  };
-
-  const handleApproveSuggestion = (suggestion) => {
-    // In a real app, this would update the database
-    setLocalActivities([...localActivities, suggestion.content]);
-    Alert.alert("Approved", `Activity "${suggestion.content}" has been added!`);
-  };
-
-  const handleRejectSuggestion = (suggestion) => {
-    // In a real app, this would update the database
-    Alert.alert("Rejected", "Suggestion has been declined.");
   };
 
   return (
@@ -517,7 +495,7 @@ export default function CampsiteDetailScreen() {
               <Text className="text-lg font-bold text-gray-800">
                 Popular Activities
               </Text>
-              {isOwner ? (
+              {isOwner && (
                 <TouchableOpacity
                   className="bg-orange-500 px-3 py-2 rounded-lg"
                   onPress={() => setShowAddActivityModal(true)}
@@ -526,17 +504,6 @@ export default function CampsiteDetailScreen() {
                     ➕ Add Activity
                   </Text>
                 </TouchableOpacity>
-              ) : (
-                isAuthenticated && (
-                  <TouchableOpacity
-                    className="bg-orange-500 px-3 py-2 rounded-lg"
-                    onPress={() => setShowSuggestModal(true)}
-                  >
-                    <Text className="text-white font-semibold text-sm">
-                      💡 Suggest
-                    </Text>
-                  </TouchableOpacity>
-                )
               )}
             </View>
             {localActivities.map((activity, index) => (
@@ -732,48 +699,6 @@ export default function CampsiteDetailScreen() {
                 </Text>
               </TouchableOpacity>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Suggest Activity Modal (for non-owners) */}
-      <Modal
-        visible={showSuggestModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowSuggestModal(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <View className="bg-white rounded-t-3xl p-6 h-[60%]">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-bold">Suggest Activity</Text>
-              <TouchableOpacity onPress={() => setShowSuggestModal(false)}>
-                <Text className="text-2xl text-gray-400">✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text className="text-gray-600 mb-4">
-              Suggest a new activity for other campers! Your suggestion will be
-              sent to the campsite owner for approval.
-            </Text>
-
-            <TextInput
-              className="bg-gray-100 rounded-lg px-4 py-3 h-24 text-gray-800"
-              placeholder="e.g., Rock climbing, Bird watching, Fishing"
-              multiline
-              value={newActivity}
-              onChangeText={setNewActivity}
-              autoFocus
-            />
-
-            <TouchableOpacity
-              className="bg-orange-500 rounded-lg py-4 mt-4"
-              onPress={handleSuggestActivity}
-            >
-              <Text className="text-white text-center font-bold text-lg">
-                Send Suggestion
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>

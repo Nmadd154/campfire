@@ -40,6 +40,10 @@ export const authService = {
     try {
       return await account.deleteSession("current");
     } catch (error) {
+      // Silently ignore if no session exists (user is guest)
+      if (error.code === 401 || error.type === "general_unauthorized_scope") {
+        return null;
+      }
       console.error("Logout error:", error);
       throw error;
     }
@@ -317,88 +321,6 @@ export const commentService = {
 };
 
 // ============================================
-// SUGGESTION SERVICES
-// ============================================
-
-export const suggestionService = {
-  // Get suggestions for campsite owner
-  async getUserSuggestions(userId) {
-    try {
-      const response = await databases.listDocuments(
-        DATABASE_ID,
-        COLLECTIONS.SUGGESTIONS,
-        [
-          Query.equal("campsiteOwnerId", userId),
-          Query.equal("status", "pending"),
-        ],
-      );
-      return response.documents;
-    } catch (error) {
-      console.error("Get suggestions error:", error);
-      throw error;
-    }
-  },
-
-  // Create suggestion
-  async createSuggestion(suggestionData) {
-    try {
-      return await databases.createDocument(
-        DATABASE_ID,
-        COLLECTIONS.SUGGESTIONS,
-        ID.unique(),
-        {
-          campsiteId: suggestionData.campsiteId,
-          campsiteOwnerId: suggestionData.campsiteOwnerId,
-          userId: suggestionData.userId,
-          userName: suggestionData.userName,
-          type: suggestionData.type,
-          content: suggestionData.content,
-          status: "pending",
-          submittedAt: new Date().toISOString(),
-        },
-      );
-    } catch (error) {
-      console.error("Create suggestion error:", error);
-      throw error;
-    }
-  },
-
-  // Approve suggestion
-  async approveSuggestion(suggestionId) {
-    try {
-      return await databases.updateDocument(
-        DATABASE_ID,
-        COLLECTIONS.SUGGESTIONS,
-        suggestionId,
-        {
-          status: "approved",
-        },
-      );
-    } catch (error) {
-      console.error("Approve suggestion error:", error);
-      throw error;
-    }
-  },
-
-  // Reject suggestion
-  async rejectSuggestion(suggestionId) {
-    try {
-      return await databases.updateDocument(
-        DATABASE_ID,
-        COLLECTIONS.SUGGESTIONS,
-        suggestionId,
-        {
-          status: "rejected",
-        },
-      );
-    } catch (error) {
-      console.error("Reject suggestion error:", error);
-      throw error;
-    }
-  },
-};
-
-// ============================================
 // ACTIVITY SERVICES
 // ============================================
 
@@ -469,18 +391,20 @@ export const tripService = {
         [Query.equal("organizer", userId)],
       );
 
-      // Get trips where user is attendee
-      const attendeeTrips = await databases.listDocuments(
+      // Get all trips and filter for attendee in code
+      // (Appwrite doesn't support direct array queries in some versions)
+      const allTripsResponse = await databases.listDocuments(
         DATABASE_ID,
         COLLECTIONS.TRIPS,
-        [Query.search("attendees", userId)],
+      );
+
+      // Filter trips where user is in attendees array
+      const attendeeTrips = allTripsResponse.documents.filter((trip) =>
+        trip.attendees?.includes(userId),
       );
 
       // Combine and deduplicate
-      const allTrips = [
-        ...organizerTrips.documents,
-        ...attendeeTrips.documents,
-      ];
+      const allTrips = [...organizerTrips.documents, ...attendeeTrips];
       const uniqueTrips = Array.from(
         new Map(allTrips.map((trip) => [trip.$id, trip])).values(),
       );
@@ -587,6 +511,76 @@ export const tripService = {
       );
     } catch (error) {
       console.error("Remove attendee error:", error);
+      throw error;
+    }
+  },
+};
+
+// ============================================
+// CHECKLIST SERVICES
+// ============================================
+
+export const checklistService = {
+  // Get checklists for a user's trip
+  async getTripChecklists(userId, tripId) {
+    try {
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.CHECKLISTS,
+        [Query.equal("userId", userId), Query.equal("tripId", tripId)],
+      );
+      return response.documents;
+    } catch (error) {
+      console.error("Get checklists error:", error);
+      throw error;
+    }
+  },
+
+  // Create checklist item
+  async createChecklistItem(itemData) {
+    try {
+      return await databases.createDocument(
+        DATABASE_ID,
+        COLLECTIONS.CHECKLISTS,
+        ID.unique(),
+        {
+          userId: itemData.userId,
+          tripId: itemData.tripId,
+          text: itemData.text,
+          completed: itemData.completed || false,
+        },
+      );
+    } catch (error) {
+      console.error("Create checklist item error:", error);
+      throw error;
+    }
+  },
+
+  // Update checklist item
+  async updateChecklistItem(itemId, updates) {
+    try {
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COLLECTIONS.CHECKLISTS,
+        itemId,
+        updates,
+      );
+    } catch (error) {
+      console.error("Update checklist item error:", error);
+      throw error;
+    }
+  },
+
+  // Delete checklist item
+  async deleteChecklistItem(itemId) {
+    try {
+      await databases.deleteDocument(
+        DATABASE_ID,
+        COLLECTIONS.CHECKLISTS,
+        itemId,
+      );
+    } catch (error) {
+      console.error("Delete checklist item error:", error);
       throw error;
     }
   },
