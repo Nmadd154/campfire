@@ -1,7 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
+import { Text } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContextAppwrite";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -26,18 +26,14 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Map",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="map.fill" color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 28 }}>🔥</Text>,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
-          ),
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 28 }}>👤</Text>,
         }}
       />
     </Tabs>

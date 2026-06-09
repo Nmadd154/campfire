@@ -2,6 +2,11 @@
 
 A React Native mobile app for planning and sharing camping trips with friends. Built with Expo, React Native, and NativeWind (Tailwind CSS).
 
+## For Assignment
+
+### Walkthrough: https://youtu.be/Oh0RmPmz-vw
+### Demo: https://youtu.be/u25Hat4CeOI
+
 ## Features
 
 ### 🗺️ Map Screen
@@ -208,7 +213,3 @@ This is a prototype/demonstration project. Feel free to fork and build upon it!
 ## License
 
 MIT License - Feel free to use this project as a starting point for your own camping app.
-
----
-
-Built with ❤️ and ☕ for outdoor enthusiasts

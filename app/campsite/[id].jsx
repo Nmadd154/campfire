@@ -51,7 +51,7 @@ export default function CampsiteDetailScreen() {
       const campsiteData = await campsiteService.getCampsite(id);
       setCampsite(campsiteData);
 
-      // Load posts (optional - fail gracefully if collection doesn't exist)
+      // Load posts
       try {
         const postsData = await postService.getCampsitePosts(id);
         setLocalPosts(postsData);
@@ -530,57 +530,8 @@ export default function CampsiteDetailScreen() {
                 <Text className="text-gray-500 text-sm text-center mt-2">
                   {isOwner
                     ? "Add the first activity!"
-                    : "Be the first to suggest one!"}
+                    : "Check back later for activities!"}
                 </Text>
-              </View>
-            )}
-
-            {/* Suggestions Section (Owner Only) */}
-            {isOwner && campsiteSuggestions.length > 0 && (
-              <View className="mt-8">
-                <Text className="text-lg font-bold text-gray-800 mb-4">
-                  Pending Suggestions ({campsiteSuggestions.length})
-                </Text>
-                {campsiteSuggestions.map((suggestion) => (
-                  <View
-                    key={suggestion.id}
-                    className="bg-white rounded-xl p-4 mb-3 shadow-sm"
-                  >
-                    <View className="flex-row items-center justify-between mb-2">
-                      <Text className="text-sm text-gray-500">
-                        From: {suggestion.userName}
-                      </Text>
-                      <View className="bg-yellow-100 px-2 py-1 rounded-full">
-                        <Text className="text-yellow-700 text-xs font-semibold">
-                          Pending
-                        </Text>
-                      </View>
-                    </View>
-                    <View className="bg-gray-50 p-3 rounded-lg mb-3">
-                      <Text className="text-gray-900 font-medium">
-                        {suggestion.content}
-                      </Text>
-                    </View>
-                    <View className="flex-row justify-end">
-                      <TouchableOpacity
-                        className="bg-green-500 px-4 py-2 rounded-lg mr-2"
-                        onPress={() => handleApproveSuggestion(suggestion)}
-                      >
-                        <Text className="text-white text-sm font-semibold">
-                          ✓ Approve
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        className="bg-red-500 px-4 py-2 rounded-lg"
-                        onPress={() => handleRejectSuggestion(suggestion)}
-                      >
-                        <Text className="text-white text-sm font-semibold">
-                          ✗ Reject
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
               </View>
             )}
           </View>
