@@ -1,3 +1,9 @@
+/**
+ * Purpose: Detailed view of a specific trip with overview and checklist
+ * Author: Nicholas Maddox
+ * Date: 06/07/2026
+ */
+
 import { useAuth } from "@/context/AuthContextAppwrite";
 import { checklistService, tripService } from "@/services/appwriteService";
 import { useLocalSearchParams, useRouter } from "expo-router";

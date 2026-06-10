@@ -1,3 +1,9 @@
+/**
+ * Purpose: Root layout component that provides navigation structure and authentication context
+ * Author: Nicholas Maddox
+ * Date: 06/07/2026
+ */
+
 import {
   DarkTheme,
   DefaultTheme,

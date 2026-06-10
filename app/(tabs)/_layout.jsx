@@ -1,3 +1,9 @@
+/**
+ * Purpose: Tab navigation layout for authenticated users
+ * Author: Nicholas Maddox
+ * Date: 06/07/2026
+ */
+
 import { Redirect, Tabs } from "expo-router";
 import { Text } from "react-native";
 

@@ -1,15 +1,21 @@
+/**
+ * Purpose: Screen for creating new campsites with details and location
+ * Author: Nicholas Maddox
+ * Date: 06/07/2026
+ */
+
 import { useAuth } from "@/context/AuthContextAppwrite";
 import { campsiteService } from "@/services/appwriteService";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function CreateCampsiteScreen() {

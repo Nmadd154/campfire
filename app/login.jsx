@@ -1,3 +1,9 @@
+/**
+ * Purpose: Login screen for user authentication
+ * Author: Nicholas Maddox
+ * Date: 06/07/2026
+ */
+
 import { useAuth } from "@/context/AuthContextAppwrite";
 import { useRouter } from "expo-router";
 import { useState } from "react";

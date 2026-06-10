@@ -1,3 +1,9 @@
+/**
+ * Purpose: Map screen displaying campsites with markers and search functionality
+ * Author: Nicholas Maddox
+ * Date: 06/07/2026
+ */
+
 import { useAuth } from "@/context/AuthContextAppwrite";
 import { campsiteService } from "@/services/appwriteService";
 import * as Location from "expo-location";
