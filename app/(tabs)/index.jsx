@@ -5,7 +5,7 @@
  */
 
 import { useAuth } from "@/context/AuthContextAppwrite";
-import { campsiteService } from "@/services/appwriteService";
+import { campsiteService } from "@/services";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";

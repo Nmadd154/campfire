@@ -10,7 +10,7 @@ import {
   campsiteService,
   commentService,
   postService,
-} from "@/services/appwriteService";
+} from "@/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {

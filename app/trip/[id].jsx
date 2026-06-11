@@ -5,7 +5,7 @@
  */
 
 import { useAuth } from "@/context/AuthContextAppwrite";
-import { checklistService, tripService } from "@/services/appwriteService";
+import { checklistService, tripService } from "@/services";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
