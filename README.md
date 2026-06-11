@@ -5,6 +5,7 @@ A React Native mobile app for planning and sharing camping trips with friends. B
 ## For Assignment
 
 ### Walkthrough: https://youtu.be/Oh0RmPmz-vw
+
 ### Demo: https://youtu.be/u25Hat4CeOI
 
 ## Features
@@ -90,6 +91,42 @@ campfire/
 - npm or yarn
 - Expo CLI
 - iOS Simulator or Android Emulator (optional)
+- **Appwrite account** (for backend services)
+
+### Backend Setup (Appwrite)
+
+This app uses Appwrite for authentication, database, and storage. You'll need to set up your own Appwrite instance:
+
+1. **Create an Appwrite account** at [cloud.appwrite.io](https://cloud.appwrite.io)
+
+2. **Create a new project** in the Appwrite console
+
+3. **Set up the database**:
+   - Create a new database
+   - Create the following collections with appropriate permissions:
+     - `users` - User profiles
+     - `campsites` - Campsite information
+     - `posts` - User posts and updates
+     - `comments` - Post comments
+     - `trips` - Trip planning
+     - `activities` - Activity tracking
+     - `checklists` - Trip checklists
+
+4. **Configure environment variables**:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` and add your Appwrite credentials:
+
+   ```env
+   EXPO_PUBLIC_APPWRITE_ENDPOINT=https://sfo.cloud.appwrite.io/v1
+   EXPO_PUBLIC_APPWRITE_PROJECT_ID=your_project_id_here
+   EXPO_PUBLIC_APPWRITE_DATABASE_ID=your_database_id_here
+   ```
+
+> **Note**: Without setting up Appwrite, you'll see authentication errors when running the app.
 
 ### Installation
 
@@ -192,19 +229,6 @@ The app uses NativeWind for styling. Use Tailwind utility classes:
   <Text className="text-2xl font-bold text-orange-500">Hello</Text>
 </View>
 ```
-
-## Future Enhancements
-
-- Real backend API integration
-- Real-time location services
-- Weather integration
-- Push notifications for trip updates
-- Photo upload functionality
-- Social authentication
-- Advanced search and filters
-- Route planning
-- Camping gear recommendations
-- Integration with camping reservation systems
 
 ## Contributing
 
