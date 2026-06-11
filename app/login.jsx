@@ -4,6 +4,7 @@
  * Date: 06/07/2026
  */
 
+import { isDemoMode } from "@/config/mode";
 import { useAuth } from "@/context/AuthContextAppwrite";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -113,6 +114,18 @@ export default function LoginScreen() {
             <Text className="text-white font-bold underline">Sign Up</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Demo Mode Indicator */}
+        {isDemoMode() && (
+          <View className="bg-white/20 rounded-lg p-4 mt-6">
+            <Text className="text-white text-center font-semibold mb-1">
+              🎮 Demo Mode Active
+            </Text>
+            <Text className="text-white/90 text-center text-sm">
+              Enter any email and password to try the app
+            </Text>
+          </View>
+        )}
       </View>
     </KeyboardAvoidingView>
   );

@@ -91,11 +91,37 @@ campfire/
 - npm or yarn
 - Expo CLI
 - iOS Simulator or Android Emulator (optional)
-- **Appwrite account** (for backend services)
 
-### Backend Setup (Appwrite)
+### Quick Start (Demo Mode)
 
-This app uses Appwrite for authentication, database, and storage. You'll need to set up your own Appwrite instance:
+Want to try the app without setting up a backend? Just run it!
+
+```bash
+npm install
+npm start
+```
+
+The app will automatically run in **Demo Mode** with mock data. Perfect for testing and exploring features.
+
+### Backend Setup (Optional - For Production Use)
+
+The app supports two modes:
+
+#### 🎮 Demo Mode (Default)
+
+- Uses mock data stored in memory
+- No backend setup required
+- Perfect for testing and development
+- Data resets when app restarts
+
+#### 🚀 Appwrite Mode (Production)
+
+- Real backend with persistent data
+- User authentication
+- Cloud storage for images
+- Multi-user support
+
+To use Appwrite backend:
 
 1. **Create an Appwrite account** at [cloud.appwrite.io](https://cloud.appwrite.io)
 
@@ -121,12 +147,13 @@ This app uses Appwrite for authentication, database, and storage. You'll need to
    Edit `.env` and add your Appwrite credentials:
 
    ```env
+   EXPO_PUBLIC_FORCE_DEMO_MODE=false
    EXPO_PUBLIC_APPWRITE_ENDPOINT=https://sfo.cloud.appwrite.io/v1
    EXPO_PUBLIC_APPWRITE_PROJECT_ID=your_project_id_here
    EXPO_PUBLIC_APPWRITE_DATABASE_ID=your_database_id_here
    ```
 
-> **Note**: Without setting up Appwrite, you'll see authentication errors when running the app.
+5. **Restart the app** - it will automatically detect and use Appwrite
 
 ### Installation
 
